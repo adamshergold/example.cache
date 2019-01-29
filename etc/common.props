@@ -1,0 +1,56 @@
+
+<Project>
+
+    <PropertyGroup>
+        <Example-Serialisation-Major>1</Example-Serialisation-Major> 
+        <Example-Serialisation-Minor>1</Example-Serialisation-Minor>
+    </PropertyGroup>
+
+    <PropertyGroup>
+        <Example-Branch Condition=" '$(CI_COMMIT_REF_NAME)' == 'master' ">master</Example-Branch>
+        <Example-Branch Condition=" '$(CI_COMMIT_REF_NAME)' == 'develop' Or '$(CI_COMMIT_REF_NAME)' == ''">develop</Example-Branch>
+        <Example-Branch Condition=" $(CI_COMMIT_REF_NAME.Contains( 'release' )) ">release</Example-Branch>
+    </PropertyGroup>
+
+    <Choose>
+        <When Condition=" '$(Example-Branch)' == 'master' ">
+            <PropertyGroup>
+                <Example-Serialisation-Version>$(Example-Serialisation-Major).$(Example-Serialisation-Minor).0</Example-Serialisation-Version>
+            </PropertyGroup>
+        </When>
+        <When Condition=" '$(Example-Branch)' == 'release' ">
+            <PropertyGroup>
+                <Example-Serialisation-Version>$(Example-Serialisation-Major).$([MSBuild]::Add($(Example-Serialisation-Minor), 1)).0-*</Example-Serialisation-Version>
+            </PropertyGroup>
+        </When>
+        <Otherwise>
+            <PropertyGroup>
+                <Example-Serialisation-Version>$(Example-Serialisation-Major).$([MSBuild]::Add($(Example-Serialisation-Minor), 1)).0-*</Example-Serialisation-Version>
+            </PropertyGroup>
+        </Otherwise>
+    </Choose>   
+
+    <PropertyGroup>
+
+        <Example-FSharp-Core-Version>4.5.4</Example-FSharp-Core-Version>
+
+        <Example-GitVersionTask-Version>[4.0.1-beta1-51]</Example-GitVersionTask-Version>
+        <Example-coverlet-msbuild-Version>2.4.0</Example-coverlet-msbuild-Version>
+        <Example-Microsoft-Extensions-Logging-Version>2.2.0</Example-Microsoft-Extensions-Logging-Version>
+
+        <Example-Serilog-Version>2.7.1</Example-Serilog-Version>
+        <Example-Serilog-Extensions-Logging-Version>2.0.2</Example-Serilog-Extensions-Logging-Version>
+        <Example-Serilog-Sinks-Console-Version>3.1.1</Example-Serilog-Sinks-Console-Version>
+        <Example-Serilog-Sinks-File-Version>4.0.0</Example-Serilog-Sinks-File-Version>
+        <Example-Serilog-Sinks-XUnit-Version>1.0.6</Example-Serilog-Sinks-XUnit-Version>
+        <Example-Newtonsoft-Json-Version>12.0.1</Example-Newtonsoft-Json-Version>
+
+        <Example-Microsoft-NET-Test-Sdk-Version>15.9.0</Example-Microsoft-NET-Test-Sdk-Version>
+        <Example-xunit-Version>2.4.0</Example-xunit-Version>
+        <Example-xunit-runner-visualstudio-Version>2.4.0</Example-xunit-runner-visualstudio-Version>
+        
+        <Example-App-Metrics-Version>3.0.0</Example-App-Metrics-Version>
+
+    </PropertyGroup>
+</Project>
+

@@ -1,0 +1,18 @@
+image: microsoft/dotnet:2.2-sdk 
+stages:
+  - build-test-publish
+
+build-test-publish:
+  stage: build-test-publish 
+  script:
+    - ./etc/build/gitversion.sh
+    - ./etc/build/zip.sh
+    - dotnet build example.cache.sln
+    - curl -s https://codecov.io/bash > codecov
+    - chmod +x codecov
+    # - dotnet test example.messaging.core.tests /p:CollectCoverage=true /p:CoverletOutputFormat=opencover
+    # - ./codecov -f example.messaging.core.tests/coverage.opencover.xml -t $CODECOV_TOKEN
+    # - dotnet pack example.messaging -o $CI_PROJECT_DIR/nupkgs
+    # - ./etc/build/repack.sh $CI_PROJECT_DIR/nupkgs $CI_PROJECT_DIR/nupkgs.repack
+    # - dotnet nuget push $CI_PROJECT_DIR/nupkgs.repack/* -k $MYGET_APIKEY -s $MYGET_URL
+

@@ -1,0 +1,38 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <Import Project="../etc/common.props" />
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);CopyProjectReferencesToPackage</TargetsForTfmSpecificBuildOutput>
+    <NuspecFile>example.messaging.nuspec</NuspecFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FSharp.Core" Version="$(Example-FSharp-Core-Version)" />
+    <PackageReference Include="GitVersionTask" Version="$(Example-GitVersionTask-Version)">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\example.messaging.core\example.messaging.core.fsproj" />
+    <ProjectReference Include="..\example.messaging.rabbit\example.messaging.rabbit.fsproj" />
+  </ItemGroup>
+  
+  <Target Name="UpdateNuspecProperties" AfterTargets="Build">
+    <PropertyGroup>
+      <NuspecProperties>version=$(GitVersion_FullSemVer)</NuspecProperties>
+      <NuspecProperties>$(NuspecProperties);serialisation=$(Example-Serialisation-Version.Replace('*','WILDCARD'))</NuspecProperties>
+    </PropertyGroup>
+  </Target>
+
+  <Target Name="CopyProjectReferencesToPackage" DependsOnTargets="ResolveReferences">
+    <ItemGroup>
+      <BuildOutputInPackage Include="@(ReferenceCopyLocalPaths-&gt;WithMetadataValue('ReferenceSourceTarget', 'ProjectReference'))" />
+    </ItemGroup>
+  </Target> 
+    
+</Project>
+
