@@ -7,8 +7,6 @@ type ICache =
     
     abstract Id : string with get
     
-    abstract Keys : unit -> string[]
-    
     abstract Get : key:string -> ITypeSerialisable
     
     abstract Set : key:string -> ITypeSerialisable -> unit
@@ -26,6 +24,11 @@ type ICache =
     [<CLIEvent>]
     abstract OnRemove : IEvent<string>
     
+type IEnumerableCache =
+    inherit ICache
     
+    abstract Keys : unit -> string[]
+
+
          
     

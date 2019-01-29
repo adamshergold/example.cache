@@ -1,4 +1,4 @@
-namespace Example.Cache.Core
+namespace Example.Cache.Memory
 
 open Microsoft.Extensions.Logging
 
@@ -21,7 +21,7 @@ module private MemoryCacheImpl =
             new CacheEntry( item, ttl )
             
             
-type MemoryCacheOptions = {
+type Options = {
     InitialCapacity : int
     TimeToLiveSeconds : int option
 }
@@ -31,7 +31,7 @@ with
         TimeToLiveSeconds = Some 60
     }
     
-type MemoryCache( logger: ILogger, id:string, options:MemoryCacheOptions ) =
+type Cache( logger: ILogger, id:string, options:Options ) =
     
     let items =
         new System.Collections.Generic.Dictionary<string,CacheEntry>( options.InitialCapacity )
@@ -48,7 +48,7 @@ type MemoryCache( logger: ILogger, id:string, options:MemoryCacheOptions ) =
     member val Id = id
     
     static member Make( logger ) =
-        new MemoryCache( logger ) :> ICache
+        new Cache( logger ) :> IEnumerableCache
         
     member this.Dispose () =
         lock this <| fun _ ->
@@ -111,7 +111,7 @@ type MemoryCache( logger: ILogger, id:string, options:MemoryCacheOptions ) =
             member this.Dispose () =
                 this.Dispose()
                 
-    interface ICache
+    interface IEnumerableCache
         with
             member this.Id =
                 this.Id

@@ -6,11 +6,10 @@ open Xunit
 open Xunit.Abstractions 
 
 open Example.Cache
-open Example.Cache.Core
           
 type ImplementationCreator = {
     Name : string 
-    Creator : ILogger -> string -> ICache
+    Creator : ILogger -> string -> IEnumerableCache
 }
 with 
     static member Make( name, creator ) = 
@@ -18,6 +17,21 @@ with
 
     override this.ToString() = this.Name
     
+type CacheTesting() =
+    
+    static member Memory (options:Memory.Options) (logger:ILogger) (id:string)  =
+        Memory.Cache.Make( logger, id, options )
+
+    static member Sqlite (options:Sqlite.Options) (logger:ILogger) (id:string)  =
+        Sqlite.Cache.Make( logger, id, options )
+                
+    static member Implementations
+        with get () =
+            seq {
+                yield [| ImplementationCreator.Make( "memory", CacheTesting.Memory Memory.Options.Default ) |]
+                //yield [| ImplementationCreator.Make( "sqlite", CacheTesting.Sqlite Sqlite.Options.Default ) |]
+            }
+            
 type CacheShould( oh: ITestOutputHelper ) = 
 
     let logger =
@@ -27,17 +41,8 @@ type CacheShould( oh: ITestOutputHelper ) =
         
         Logging.CreateLogger options
 
-    static member Memory (options:MemoryCacheOptions) (logger:ILogger) (id:string)  =
-        MemoryCache.Make( logger, id, options )
-            
-    static member Implementations
-        with get () =
-            seq {
-                yield [| ImplementationCreator.Make( "memory", CacheShould.Memory MemoryCacheOptions.Default ) |]
-            }
-            
     [<Theory>]
-    [<MemberData("Implementations")>]
+    [<MemberData("Implementations", MemberType=typeof<CacheTesting>)>]
     member this.``BeCreateable`` (creator:ImplementationCreator) =
         
         use sut =
@@ -47,7 +52,7 @@ type CacheShould( oh: ITestOutputHelper ) =
         Assert.True( sut.Id.Length > 0 )
 
     [<Theory>]
-    [<MemberData("Implementations")>]
+    [<MemberData("Implementations", MemberType=typeof<CacheTesting>)>]
     member this.``CanCreateSetAndGet`` (creator:ImplementationCreator) =
         
         use sut =
@@ -79,8 +84,7 @@ type CacheShould( oh: ITestOutputHelper ) =
         Assert.Equal( 1, !nRemoved )
         
     [<Theory>]
-    [<MemberData("Implementations")>]
-
+    [<MemberData("Implementations", MemberType=typeof<CacheTesting>)>]
     member this.``HousekeepingWorks`` (creator:ImplementationCreator) =
         
         use sut =
