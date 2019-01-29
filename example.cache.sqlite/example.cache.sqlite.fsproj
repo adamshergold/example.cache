@@ -18,7 +18,7 @@
 
   <ItemGroup>
     <Compile Include="interfaces.fs" />
-    <Compile Include="cache.memory.fs" />
+    <Compile Include="memory.fs" />
   </ItemGroup>
 
 </Project>
