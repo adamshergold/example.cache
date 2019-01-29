@@ -5,6 +5,10 @@ open Example.Serialisation
 type ICache =
     inherit System.IDisposable
     
+    abstract Id : string with get
+    
+    abstract Keys : unit -> string[]
+    
     abstract Get : key:string -> ITypeSerialisable
     
     abstract Set : key:string -> ITypeSerialisable -> unit

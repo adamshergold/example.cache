@@ -75,6 +75,10 @@ type MemoryCache( logger: ILogger, id:string, options:MemoryCacheOptions ) =
             logger.LogDebug( "MemoryCache::Housekeep - Finished")
         }
         
+    member this.Keys () =
+        lock this <| fun _ ->
+            items.Keys |> Array.ofSeq
+            
     member this.Set (k:string) (v:ITypeSerialisable) =
         lock this <| fun _ ->
             if items.ContainsKey k then 
@@ -109,8 +113,14 @@ type MemoryCache( logger: ILogger, id:string, options:MemoryCacheOptions ) =
                 
     interface ICache
         with
+            member this.Id =
+                this.Id
+                
             member this.Housekeep () =
                 this.Housekeep()
+                
+            member this.Keys () =
+                this.Keys()
                 
             member this.Set k v =
                 this.Set k v

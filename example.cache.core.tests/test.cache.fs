@@ -1,11 +1,24 @@
 namespace Example.Cache.Tests
 
+open Microsoft.Extensions.Logging
+
 open Xunit
 open Xunit.Abstractions 
 
+open Example.Cache
 open Example.Cache.Core
-                                            
-type MemoryShould( oh: ITestOutputHelper ) = 
+          
+type ImplementationCreator = {
+    Name : string 
+    Creator : ILogger -> string -> ICache
+}
+with 
+    static member Make( name, creator ) = 
+        { Name = name; Creator = creator }
+
+    override this.ToString() = this.Name
+    
+type CacheShould( oh: ITestOutputHelper ) = 
 
     let logger =
     
@@ -14,27 +27,31 @@ type MemoryShould( oh: ITestOutputHelper ) =
         
         Logging.CreateLogger options
 
-    [<Fact>]
-    member this.``BeCreateable`` () =
+    static member Memory (options:MemoryCacheOptions) (logger:ILogger) (id:string)  =
+        MemoryCache.Make( logger, id, options )
+            
+    static member Implementations
+        with get () =
+            seq {
+                yield [| ImplementationCreator.Make( "memory", CacheShould.Memory MemoryCacheOptions.Default ) |]
+            }
+            
+    [<Theory>]
+    [<MemberData("Implementations")>]
+    member this.``BeCreateable`` (creator:ImplementationCreator) =
         
         use sut =
+            creator.Creator logger creator.Name 
             
-            let options =
-                MemoryCacheOptions.Default
-            
-            MemoryCache.Make( logger, "test", options )
-            
-        Assert.True( true )        
+        Assert.Equal( 0, sut.Keys().Length )
+        Assert.True( sut.Id.Length > 0 )
 
-    [<Fact>]
-    member this.``CanCreateSetAndGet`` () =
+    [<Theory>]
+    [<MemberData("Implementations")>]
+    member this.``CanCreateSetAndGet`` (creator:ImplementationCreator) =
         
         use sut =
-            
-            let options =
-                MemoryCacheOptions.Default
-            
-            MemoryCache.Make( logger, "test", options )
+            creator.Creator logger creator.Name 
         
         let nGet = ref 0
         let nSet = ref 0
@@ -61,15 +78,13 @@ type MemoryShould( oh: ITestOutputHelper ) =
         Assert.Equal( 1, !nSet )
         Assert.Equal( 1, !nRemoved )
         
-    [<Fact>]
-    member this.``HousekeepingWorks`` () =
+    [<Theory>]
+    [<MemberData("Implementations")>]
+
+    member this.``HousekeepingWorks`` (creator:ImplementationCreator) =
         
-        let sut =
-            
-            let options =
-                MemoryCacheOptions.Default
-            
-            MemoryCache.Make( logger, "test", options )
+        use sut =
+            creator.Creator logger creator.Name 
         
         let v = Person.Example
         

@@ -10,9 +10,6 @@ build-test-publish:
     - dotnet build example.cache.sln
     - curl -s https://codecov.io/bash > codecov
     - chmod +x codecov
-    # - dotnet test example.messaging.core.tests /p:CollectCoverage=true /p:CoverletOutputFormat=opencover
-    # - ./codecov -f example.messaging.core.tests/coverage.opencover.xml -t $CODECOV_TOKEN
-    # - dotnet pack example.messaging -o $CI_PROJECT_DIR/nupkgs
-    # - ./etc/build/repack.sh $CI_PROJECT_DIR/nupkgs $CI_PROJECT_DIR/nupkgs.repack
-    # - dotnet nuget push $CI_PROJECT_DIR/nupkgs.repack/* -k $MYGET_APIKEY -s $MYGET_URL
+    - dotnet test example.cache.core.tests /p:CollectCoverage=true /p:CoverletOutputFormat=opencover
+    - ./codecov -f example.cache.core.tests/coverage.opencover.xml -t $CODECOV_TOKEN
 

@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <Import Project="../etc/common.props"/>
+  <Import Project="../etc/common.props" />
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
@@ -17,8 +17,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="interfaces.fs" />
-    <Compile Include="memory.fs" />
+    <Compile Include="cache.sqlite.fs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\example.cache.core\example.cache.core.fsproj" />
   </ItemGroup>
 
 </Project>
