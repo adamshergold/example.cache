@@ -12,8 +12,7 @@
     <Compile Include="logging.fs" />
     <Compile Include="types.fs" />
     <Compile Include="helpers.fs" />
-    <Compile Include="test.interfaces.fs" />
-    <Compile Include="test.rv.fs" />
+    <Compile Include="test.cache.fs" />
   </ItemGroup>
 
   <ItemGroup>

@@ -15,7 +15,7 @@ with
         TimeToLiveSeconds = None
     }
     
-type Cache( logger: ILogger, id:string, options:Options ) =
+type Cache( logger: ILogger, name:string, options:Options ) =
 
     let connection =
         new SqliteConnection( "Data Source=:memory:")
@@ -26,7 +26,7 @@ type Cache( logger: ILogger, id:string, options:Options ) =
     
     let onRemove = new Event<string>()
 
-    member val Id = id
+    member val Name = name
     
     static member Make( logger ) =
         new Cache( logger ) :> IEnumerableCache
@@ -38,9 +38,9 @@ type Cache( logger: ILogger, id:string, options:Options ) =
     member this.Setup () =
         ()
         
-    member this.Housekeep () =
+    member this.Clean () =
         async {
-            logger.LogDebug( "MemoryCache::Housekeep - Called")
+            logger.LogDebug( "MemoryCache::Clean - Called")
             
             let now =
                 System.DateTime.UtcNow
@@ -52,7 +52,7 @@ type Cache( logger: ILogger, id:string, options:Options ) =
             toRemove
             |> Seq.iter ( fun k -> this.Remove k |> ignore )                     
             
-            logger.LogDebug( "MemoryCache::Housekeep - Finished")
+            logger.LogDebug( "MemoryCache::Clean - Finished")
         }
         
     member this.Keys () =
@@ -66,7 +66,7 @@ type Cache( logger: ILogger, id:string, options:Options ) =
     member this.Get (k:string) =
         logger.LogDebug( "MemoryCache::Get - Called with key {Key}", k )
         lock this <| fun _ ->
-            failwithf "Failed to get value with key '%s' from '%s' cache" k id
+            failwithf "Failed to get value with key '%s' from '%s' cache" k name
 
     member this.Remove (k:string) =
         logger.LogDebug( "MemoryCache::Remove - Called with key {Key}", k )
@@ -80,14 +80,14 @@ type Cache( logger: ILogger, id:string, options:Options ) =
                 
     interface IEnumerableCache
         with
-            member this.Id =
-                this.Id
+            member this.Name =
+                this.Name
                 
             member this.Keys () =
                 this.Keys()
                 
-            member this.Housekeep () =
-                this.Housekeep()
+            member this.Clean () =
+                this.Clean()
                 
             member this.Set k v =
                 this.Set k v

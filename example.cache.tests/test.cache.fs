@@ -49,7 +49,7 @@ type CacheShould( oh: ITestOutputHelper ) =
             creator.Creator logger creator.Name 
             
         Assert.Equal( 0, sut.Keys().Length )
-        Assert.True( sut.Id.Length > 0 )
+        Assert.True( sut.Name.Length > 0 )
 
     [<Theory>]
     [<MemberData("Implementations", MemberType=typeof<CacheTesting>)>]
@@ -94,7 +94,7 @@ type CacheShould( oh: ITestOutputHelper ) =
         
         sut.Set v.Name v
         
-        sut.Housekeep() |> Async.RunSynchronously
+        sut.Clean() |> Async.RunSynchronously
         
         sut.Dispose()
         
