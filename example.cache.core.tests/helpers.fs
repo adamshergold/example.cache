@@ -1,4 +1,4 @@
-namespace Example.Cache.Tests 
+namespace Example.Cache.Core.Tests 
 
 open Example.Serialisation 
 open Example.Serialisation.Json

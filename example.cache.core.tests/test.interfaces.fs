@@ -1,4 +1,4 @@
-namespace Example.Cache.Tests
+namespace Example.Cache.Core.Tests
 
 open Microsoft.Extensions.Logging 
 
@@ -10,11 +10,7 @@ open Example.Cache
 type InterfacesShould( oh: ITestOutputHelper ) = 
 
     let logger =
-    
-        let options = 
-            { Logging.Options.Default with OutputHelper = Some oh }
-        
-        Logging.CreateLogger options
+        Logging.CreateLogger oh
            
 
              

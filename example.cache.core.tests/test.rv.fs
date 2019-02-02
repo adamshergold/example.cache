@@ -1,4 +1,4 @@
-namespace Example.Cache.Tests
+namespace Example.Cache.Core.Tests
 
 open Xunit
 open Xunit.Abstractions 
@@ -8,11 +8,7 @@ open Example.Cache.Core
 type RVShould( oh: ITestOutputHelper ) = 
 
     let logger =
-    
-        let options = 
-            { Logging.Options.Default with OutputHelper = Some oh }
-        
-        Logging.CreateLogger options
+        Logging.CreateLogger oh
 
     [<Fact>]
     member this.``ConstantWorks`` () =

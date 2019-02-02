@@ -6,10 +6,11 @@ open Xunit
 open Xunit.Abstractions 
 
 open Example.Cache
-          
+open Example.Cache.Core.Tests
+
 type ImplementationCreator = {
     Name : string 
-    Creator : ILogger -> string -> IEnumerableCache
+    Creator : ILogger -> string -> ITestCache
 }
 with 
     static member Make( name, creator ) = 
@@ -19,85 +20,69 @@ with
     
 type CacheTesting() =
     
-    static member Memory (options:Memory.Options) (logger:ILogger) (id:string)  =
-        Memory.Cache.Make( logger, id, options )
-
-    static member Sqlite (options:Sqlite.Options) (logger:ILogger) (id:string)  =
-        Sqlite.Cache.Make( logger, id, options )
-                
     static member Implementations
         with get () =
             seq {
-                yield [| ImplementationCreator.Make( "memory", CacheTesting.Memory Memory.Options.Default ) |]
-                //yield [| ImplementationCreator.Make( "sqlite", CacheTesting.Sqlite Sqlite.Options.Default ) |]
+                yield [| ImplementationCreator.Make( "memory", (fun logger name -> Memory.Cache.Make( logger, name, Memory.Options.Default)) ) |]
             }
             
 type CacheShould( oh: ITestOutputHelper ) = 
 
     let logger =
-    
-        let options = 
-            { Logging.Options.Default with OutputHelper = Some oh }
-        
-        Logging.CreateLogger options
+        Logging.CreateLogger oh
 
+    let generator =
+        Random.Generator.Make()
+        
     [<Theory>]
     [<MemberData("Implementations", MemberType=typeof<CacheTesting>)>]
     member this.``BeCreateable`` (creator:ImplementationCreator) =
         
         use sut =
-            creator.Creator logger creator.Name 
+            creator.Creator logger creator.Name
             
         Assert.Equal( 0, sut.Keys().Length )
         Assert.True( sut.Name.Length > 0 )
 
-    [<Theory>]
-    [<MemberData("Implementations", MemberType=typeof<CacheTesting>)>]
-    member this.``CanCreateSetAndGet`` (creator:ImplementationCreator) =
-        
-        use sut =
-            creator.Creator logger creator.Name 
-        
-        let nGet = ref 0
-        let nSet = ref 0
-        let nRemoved = ref 0
-        
-        sut.OnSet.Add( fun (k,v_) -> System.Threading.Interlocked.Increment( nSet ) |> ignore )
-        sut.OnGet.Add( fun k -> System.Threading.Interlocked.Increment( nGet ) |> ignore )
-        sut.OnRemove.Add( fun k -> System.Threading.Interlocked.Increment( nRemoved ) |> ignore )
-        
-        let v = Person.Example
-        
-        sut.Set v.Name v
-        
-        let v' = sut.Get v.Name
-        
-        Assert.Equal( v', v )
-        
-        Assert.True( sut.Remove v.Name ) 
-        
-        Assert.ThrowsAny<System.Exception>( fun () -> sut.Get v.Name |> ignore ) |> ignore
-        
-        // we do not count a failed 'Get' - it won't fire
-        Assert.Equal( 1, !nGet )
-        Assert.Equal( 1, !nSet )
-        Assert.Equal( 1, !nRemoved )
-        
-    [<Theory>]
-    [<MemberData("Implementations", MemberType=typeof<CacheTesting>)>]
-    member this.``HousekeepingWorks`` (creator:ImplementationCreator) =
-        
-        use sut =
-            creator.Creator logger creator.Name 
-        
-        let v = Person.Example
-        
-        sut.Set v.Name v
-        
-        sut.Clean() |> Async.RunSynchronously
-        
-        sut.Dispose()
-        
-        Assert.True( true )
-        
+//    [<Theory>]
+//    [<MemberData("Implementations", MemberType=typeof<CacheTesting>)>]
+//    member this.``CanCreateSetAndGet`` (creator:ImplementationCreator) =
+//        
+//        use sut =
+//            creator.Creator logger creator.Name 
+//        
+//        let v = TestType.Random generator 
+//        
+//        sut.Set v.Id v
+//        
+//        let v' = sut.Get v.Id
+//        
+//        Assert.Equal( v', v )
+//        
+//        Assert.True( sut.Remove v.Id ) 
+//        
+//        Assert.ThrowsAny<System.Exception>( fun () -> sut.Get v.Id |> ignore ) |> ignore
+//        
+//        // we do not count a failed 'Get' - it won't fire
+//        Assert.Equal( 1, sut.Statistics.Get )
+//        Assert.Equal( 1, sut.Statistics.Set )
+//        Assert.Equal( 1, sut.Statistics.Remove )
+//        
+//    [<Theory>]
+//    [<MemberData("Implementations", MemberType=typeof<CacheTesting>)>]
+//    member this.``ExpiryAndCleanWorksForSimpleCase`` (creator:ImplementationCreator) =
+//        
+//        use sut =
+//            creator.Creator logger creator.Name 
+//        
+//        let v = TestType.Example
+//        
+//        sut.Set v.Id v
+//        
+//        sut.Clean() |> Async.RunSynchronously
+//        
+//        sut.Dispose()
+//        
+//        Assert.True( true )
+//        
         

@@ -1,6 +1,6 @@
 namespace Example.Cache.Core
 
-type RV<'T>( fn:unit->'T, refreshIntervalMs:int option, ttlMs: int option ) =
+type RV<'T>( initialV: 'T option, fn:unit->'T, refreshIntervalMs:int option, ttlMs: int option ) =
     
     let nextRefresh (t:System.DateTime) =
         refreshIntervalMs |> Option.map ( fun ms -> t.AddMilliseconds((float)ms))
@@ -8,7 +8,8 @@ type RV<'T>( fn:unit->'T, refreshIntervalMs:int option, ttlMs: int option ) =
     let expiresAt (t:System.DateTime) =
         ttlMs |> Option.map ( fun ms -> t.AddMilliseconds((float)ms))
         
-    let mutable _v = fn()
+    let mutable _v =
+        if initialV.IsSome then initialV.Value else fn()
     
     let mutable _nextRefresh =
         nextRefresh System.DateTime.UtcNow
@@ -16,11 +17,11 @@ type RV<'T>( fn:unit->'T, refreshIntervalMs:int option, ttlMs: int option ) =
     let mutable _expiresAt =
         expiresAt System.DateTime.UtcNow
         
-    static member Make<'T>( fn, refresh, ttl ) =
-        new RV<'T>( fn, refresh, ttl )
+    static member Make<'T>( iv, fn, refresh, ttl ) =
+        new RV<'T>( iv, fn, refresh, ttl )
         
     static member Make<'T>( v:'T ) =
-        new RV<'T>( (fun _ -> v), None, None )
+        new RV<'T>( None, (fun _ -> v), None, None )
         
     member this.HasExpired
         with get () =

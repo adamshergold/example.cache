@@ -18,6 +18,7 @@
 
   <ItemGroup>
     <Compile Include="interfaces.fs" />
+    <Compile Include="statistics.fs" />
     <Compile Include="rv.fs" />
   </ItemGroup>
 

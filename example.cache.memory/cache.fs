@@ -2,53 +2,113 @@ namespace Example.Cache.Memory
 
 open Microsoft.Extensions.Logging
 
-open Example.Cache
 open Example.Serialisation
+
+open Example.Cache
+open Example.Cache.Core
 
 [<AutoOpen>]
 module private MemoryCacheImpl =
     
-    type CacheEntry( item: ITypeSerialisable, ttlSeconds: int option ) =
-        
-        let expires =
-            ttlSeconds |> Option.map ( fun ttl -> System.DateTime.UtcNow.AddSeconds( (float) ttl ) )
-            
-        member val Item = item
-        
-        member val Expires = expires
-        
-        static member Make( item, ttl ) =
-            new CacheEntry( item, ttl )
-            
-            
+    type LRUItem<'K> = {
+        Key : 'K
+        CreatedAt : System.DateTime 
+    }
+    with 
+        static member Make( k, ca ) = 
+            { Key = k; CreatedAt = ca } 
+               
+    type CacheItem<'K,'V> = {
+        Item : 'V
+        LRUNode : System.Collections.Generic.LinkedListNode<LRUItem<'K>>
+    }
+    with 
+        static member Make( item, n ) = 
+            { Item = item; LRUNode = n }
+
 type Options = {
-    InitialCapacity : int
+    InitialCapacity : int option
+    MaxSize : int option
     TimeToLiveSeconds : int option
 }
 with
     static member Default = {
-        InitialCapacity = 512
+        InitialCapacity = None
+        MaxSize = None
         TimeToLiveSeconds = Some 60
     }
     
-type Cache( logger: ILogger, name:string, options:Options ) =
+    interface ICacheOptions
+    
+type Cache<'K,'V when 'K : comparison> ( logger: ILogger, name:string, options:Options ) =
+    
+    let makeLRUNode (k:'K) = 
+        System.Collections.Generic.LinkedListNode( LRUItem<'K>.Make(k,System.DateTime.UtcNow) )
+    
+    let slimLock = 
+        new System.Threading.ReaderWriterLockSlim() 
+    
+    let withReadLock fn = 
+        slimLock.EnterReadLock()
+        try
+            fn()
+        finally 
+            slimLock.ExitReadLock() 
+         
+    let withWriteLock fn = 
+        slimLock.EnterWriteLock()
+        try
+            fn()
+        finally     
+            slimLock.ExitWriteLock()
+            
+    let statistics =
+        Statistics.Make()
     
     let items =
-        new System.Collections.Generic.Dictionary<string,CacheEntry>( options.InitialCapacity )
+        if options.InitialCapacity.IsSome then 
+            new System.Collections.Generic.Dictionary<'K,CacheItem<'K,'V>>( options.InitialCapacity.Value )
+        else
+            if options.MaxSize.IsSome then 
+                new System.Collections.Generic.Dictionary<'K,CacheItem<'K,'V>>( options.MaxSize.Value )
+            else
+                new System.Collections.Generic.Dictionary<'K,CacheItem<'K,'V>>()
+                
+    let lru = 
+        new System.Collections.Generic.LinkedList<LRUItem<'K>>() 
         
     let onSet =
-        new Event<string*ITypeSerialisable>()
+        new Event<'K>()
     
     let onGet =
-        new Event<string>()
+        new Event<'K>()
     
     let onRemove =
-        new Event<string>()
+        new Event<'K>()
 
+    let onEvicted =
+        new Event<'K>()
+        
+    let remove (k:'K) = 
+        if items.ContainsKey k then
+            let ci = items.Item(k)
+            lru.Remove(ci.LRUNode)
+            let result = items.Remove(k)
+            onRemove.Trigger( k )
+            result
+        else 
+            false 
+    
     member val Name = name
     
-    static member Make( logger ) =
-        new Cache( logger ) :> IEnumerableCache
+    member val Statistics = statistics
+    
+    static member Make<'K,'V>( logger, name, options:ICacheOptions ) =
+        match options with
+        | :? Options as options ->
+            new Cache<'K,'V>( logger, name, options ) :> IEnumerableCache<'K,'V>
+        | _ ->
+            failwithf "Invalid options type passed to Memory constructor!"
         
     member this.Dispose () =
         lock this <| fun _ ->
@@ -56,66 +116,140 @@ type Cache( logger: ILogger, name:string, options:Options ) =
             
     member this.Clean () =
         async {
-            logger.LogDebug( "MemoryCache::Clean - Called")
-            
-            let now =
-                System.DateTime.UtcNow
-            
-            let toRemove =
-                lock this <| fun _ ->
-                    items.Keys
-                    |> Seq.filter ( fun k ->
-                        let ce = items.Item(k)
-                        ce.Expires.IsSome && ce.Expires.Value < now )
-                    |> Array.ofSeq
-                    
-            toRemove
-            |> Seq.iter ( fun k -> this.Remove k |> ignore )                     
-            
-            logger.LogDebug( "MemoryCache::Clean - Finished")
+            return ()
         }
         
+    member this.Exists (k:'K) =
+        logger.LogTrace( "MemoryCache::Exists({CacheName}) - Called for {Key}", this.Name, k )
+        withReadLock <| fun _ ->
+            items.ContainsKey( k )
+            
     member this.Keys () =
-        lock this <| fun _ ->
+        logger.LogTrace( "MemoryCache::Keys({CacheName}) - Called", this.Name )
+        withReadLock <| fun _ ->
             items.Keys |> Array.ofSeq
             
-    member this.Set (k:string) (v:ITypeSerialisable) =
-        lock this <| fun _ ->
-            if items.ContainsKey k then 
-                this.Remove k |> ignore
-            let ce = CacheEntry.Make( v, options.TimeToLiveSeconds )
-            logger.LogDebug( "MemoryCache::Set - Called with key {Key} (expires {Expires})", k, ce.Expires)
-            items.Add( k, ce )
-            onSet.Trigger( (k,v) )
+    member this.Flush () =
 
-    member this.Get (k:string) =
-        logger.LogDebug( "MemoryCache::Get - Called with key {Key}", k )
-        lock this <| fun _ ->
-            match items.TryGetValue k with
-            | true, v ->
-                let result = v.Item
-                onGet.Trigger(k)
+        logger.LogTrace( "MemoryCache::Flush({CacheName}) - Called", this.Name )
+        
+        let removeLast () =  
+            if lru.Last <> null then
+                let keyToRemove = lru.Last.Value.Key
+                let result = remove keyToRemove 
+                onEvicted.Trigger( keyToRemove )
                 result
-            | false, _ ->
-                failwithf "Failed to get value with key '%s' from '%s' cache" k name
+            else    
+                false
 
-    member this.Remove (k:string) =
-        logger.LogDebug( "MemoryCache::Remove - Called with key {Key}", k )
-        lock this <| fun _ ->
-            let result = items.Remove k
-            onRemove.Trigger(k)
-            result
+        let oversizedRemoved = 
+            if options.MaxSize.IsSome then 
+                let n = ref 0
+                withWriteLock <| fun () ->
+                    while items.Count > options.MaxSize.Value do
+                        if removeLast() then System.Threading.Interlocked.Increment( n ) |> ignore else ()
+                !n     
+            else 
+                0
+                
+        let expiredRemoved = 
+        
+            let now =   
+                System.DateTime.UtcNow  
+                
+            let lastExpired ttlSeconds = 
+                (now - lru.Last.Value.CreatedAt).TotalSeconds > (float) ttlSeconds 
+                
+            if options.TimeToLiveSeconds.IsSome then 
+                let n = ref 0 
+                withWriteLock <| fun () ->
+                    while lru.Count > 0 && lastExpired options.TimeToLiveSeconds.Value do
+                        if removeLast() then System.Threading.Interlocked.Increment( n ) |> ignore else ()
+                !n     
+            else 
+                0
+                    
+        logger.LogTrace( "MemoryCache::Flush({CacheName}) - Removed {Removed} items", this.Name, (oversizedRemoved + expiredRemoved) )
+        
+        oversizedRemoved + expiredRemoved           
+        
+    member this.Set (k:'K) (v:'V) =
+        logger.LogTrace( "MemoryCache::Set({CacheName}) - Called with key {Key}", this.Name, k )
+        statistics.Set()
+        withWriteLock <| fun _ ->        
+            let exists, item = 
+                items.TryGetValue k                                    
+
+            let newItem =                        
+                if exists then
+                    // if exists, remove from the node from LRU list - O(1)
+                    lru.Remove( item.LRUNode )
+                    // remove key from cache - O(1)
+                    items.Remove( k ) |> ignore
+                    CacheItem<_,_>.Make( item.Item, makeLRUNode k ) 
+                else 
+                    CacheItem<_,_>.Make( v, makeLRUNode k )                     
+                        
+            // put the item into the cache                        
+            items.Add( k, newItem )
+            // add the node to front of LRU list
+            lru.AddFirst( newItem.LRUNode )
+            
+        let nFlushed = this.Flush()
+        onSet.Trigger( k)
+
+    member this.Get (k:'K) =
+        logger.LogTrace( "MemoryCache::Get({CacheName}) - Called with key {Key}", this.Name, k )        
+        statistics.Get()
+        withReadLock <| fun _ ->
+            
+            let exists, item =
+                items.TryGetValue k
+
+            if not exists then
+                failwithf "No item in cache for key - %A" k
+            else
+                statistics.Hit()
+                
+                lru.Remove( item.LRUNode )
+                
+                items.Remove( k ) |> ignore
+                
+                let newItem =                        
+                    CacheItem<_,_>.Make( item.Item, makeLRUNode k ) 
+        
+                items.Add( k, newItem )
+                lru.AddFirst( newItem.LRUNode )
+                        
+                onGet.Trigger(k)
+                
+                newItem.Item                            
+
+    member this.Remove (k:'K) =
+        logger.LogTrace( "MemoryCache::Remove({CacheName}) - Called with key {Key}", this.Name, k )
+        statistics.Remove()
+        withWriteLock <| fun _ ->
+            remove k 
                 
     interface System.IDisposable
         with
             member this.Dispose () =
                 this.Dispose()
                 
-    interface IEnumerableCache
+    interface IEnumerableCache<'K,'V>
         with
+            member this.Count
+                with get () = items.Count 
+                
+            member this.Statistics =
+                this.Statistics :> IStatistics
+                
             member this.Name =
                 this.Name
-                
+
+            member this.Exists k =
+                this.Exists k
+                            
             member this.Clean () =
                 this.Clean()
                 
@@ -141,4 +275,8 @@ type Cache( logger: ILogger, name:string, options:Options ) =
                 
             [<CLIEvent>]                    
             member this.OnRemove =
-                onRemove.Publish                                                                                                                                         
+                onRemove.Publish
+
+            [<CLIEvent>]                    
+            member this.OnEvicted =
+                onEvicted.Publish

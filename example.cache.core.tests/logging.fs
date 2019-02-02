@@ -1,4 +1,4 @@
-namespace Example.Cache.Tests
+namespace Example.Cache.Core.Tests
 
 open Microsoft.Extensions.Logging 
 
@@ -10,15 +10,13 @@ module Logging =
 
     type Options = {
         Level : Microsoft.Extensions.Logging.LogLevel
-        ToConsole : bool
         OutputHelper : ITestOutputHelper option
-        Template : string 
+        Template : string
     }
     with 
         static member Default = {
             Level = LogLevel.Debug
-            ToConsole = false
-            OutputHelper = None 
+            OutputHelper = None
             Template = "{Timestamp:yyyy-MM-dd HH:mm:ss} [{Level}] {Message} {Properties}{NewLine}{Exception}"
         }
 
@@ -32,7 +30,14 @@ module Logging =
         | Microsoft.Extensions.Logging.LogLevel.Critical -> Serilog.Events.LogEventLevel.Fatal
         | _ -> Serilog.Events.LogEventLevel.Information 
         
-    let CreateLogger (options:Options) =         
+    
+    let CreateLogger (oh:ITestOutputHelper) =
+        
+        let options = {
+            Options.Default
+                with
+                    OutputHelper = Some oh
+        }
 
         let levelSwitch = 
             Serilog.Core.LoggingLevelSwitch() 
@@ -43,25 +48,14 @@ module Logging =
             Serilog.LoggerConfiguration()
                 .MinimumLevel.ControlledBy(levelSwitch)
                 
-        let config = 
-            if options.ToConsole then                
-                config.WriteTo.Console( outputTemplate = options.Template )
-            else 
-                config 
-
-        let config = 
-            if options.OutputHelper.IsSome then  
-                config.WriteTo.TestOutput(
-                    options.OutputHelper.Value, 
-                    levelSwitch.MinimumLevel,
-                    outputTemplate = options.Template )
-            else 
-                config 
-                            
+        let config =
+            config.WriteTo.TestOutput(
+                oh, levelSwitch.MinimumLevel, options.Template )
+            
         let lf = 
             new LoggerFactory()
                 
         lf.AddSerilog( config.CreateLogger() ) |> ignore   
         
-        lf.CreateLogger("Messaging.Tests")
+        lf.CreateLogger("Cache.Tests")
 
