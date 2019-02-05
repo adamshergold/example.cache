@@ -13,9 +13,9 @@ type RVShould( oh: ITestOutputHelper ) =
     [<Fact>]
     member this.``ConstantWorks`` () =
         
-        let sut = RV.Make<_>(42)
+        let sut = RV.Constant<_>(42)
         
         Assert.False( sut.HasExpired )
         Assert.False( sut.NeedsRefresh )
-        Assert.Equal( 42, sut.Value) 
+        Assert.Equal( Some 42, sut.Value) 
     

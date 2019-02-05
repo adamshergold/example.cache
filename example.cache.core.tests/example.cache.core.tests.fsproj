@@ -31,13 +31,14 @@
     <PackageReference Include="Serilog.Extensions.Logging" Version="$(Example-Serilog-Extensions-Logging-Version)" />
     <PackageReference Include="Serilog.Sinks.XUnit" Version="$(Example-Serilog-Sinks-XUnit-Version)" />
     <PackageReference Include="Serilog.Sinks.Console" Version="$(Example-Serilog-Sinks-Console-Version)" />
+    <PackageReference Include="NodaTime" Version="$(Example-NodaTime-Version)" />
     <PackageReference Include="example.serialisation" Version="$(Example-Serialisation-Version)" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\example.cache.core\example.cache.core.fsproj" />
     <ProjectReference Include="..\example.cache.memory\example.cache.memory.fsproj" />
-    <ProjectReference Include="..\example.cache.sqlite\example.cache.sqlite.fsproj" />
+    <ProjectReference Include="..\example.cache.sql\example.cache.sql.fsproj" />
   </ItemGroup>
 
 </Project>

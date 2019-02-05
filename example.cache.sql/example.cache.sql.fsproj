@@ -13,16 +13,25 @@
     </PackageReference>
     <PackageReference Include="FSharp.Core" Version="$(Example-FSharp-Core-Version)" />
     <PackageReference Include="Microsoft.Extensions.Logging" Version="$(Example-Microsoft-Extensions-Logging-Version)" />
+    <PackageReference Include="System.Data.SqlClient" Version="$(Example-System-Data-SqlClient-Version)" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="$(Example-Microsoft-Data-Sqlite-Version)" />
+    <PackageReference Include="MySql.Data" Version="$(Example-MySql-Data-Version)" />
     <PackageReference Include="example.serialisation" Version="$(Example-Serialisation-Version)" />
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="cache.sqlite.fs" />
+    <Compile Include="utilities.fs" />
+    <Compile Include="interfaces.fs" />
+    <Compile Include="connector.fs" />
+    <Compile Include="connection.fs" />
+    <Compile Include="factory.fs" />
+    <Compile Include="options.fs" />
+    <Compile Include="cache.fs" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\example.cache.core\example.cache.core.fsproj" />
+    <ProjectReference Include="..\example.cache.memory\example.cache.memory.fsproj" />
   </ItemGroup>
 
 </Project>

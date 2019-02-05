@@ -12,39 +12,41 @@ type IStatistics =
 type ICacheOptions =
     interface end
     
-type ICache<'K,'V> =
+type ICache<'V> =
     inherit System.IDisposable
     
     abstract Name : string with get
     
+    abstract Purge : unit -> int
+    
     abstract Clean : unit -> Async<unit>
     
-    abstract Exists : key:'K -> bool
+    abstract Exists : key:string -> bool
     
-    abstract Get : key:'K -> 'V
+    abstract TryGet : key:string -> 'V option
     
-    abstract Set : key:'K -> 'V -> unit
+    abstract Set : key:string -> 'V -> unit
     
-    abstract Remove : key:'K -> bool
+    abstract Remove : key:string -> bool
     
     abstract Statistics : IStatistics with get
     
     [<CLIEvent>]
-    abstract OnGet : IEvent<'K>
+    abstract OnGet : IEvent<string>
     
     [<CLIEvent>]
-    abstract OnSet : IEvent<'K>
+    abstract OnSet : IEvent<string>
 
     [<CLIEvent>]
-    abstract OnRemove : IEvent<'K>
+    abstract OnRemove : IEvent<string>
 
     [<CLIEvent>]
-    abstract OnEvicted : IEvent<'K>
+    abstract OnEvicted : IEvent<string>
 
-type IEnumerableCache<'K,'V> =
-    inherit ICache<'K,'V>
+type IEnumerableCache<'V> =
+    inherit ICache<'V>
     
-    abstract Keys : unit -> 'K[]
+    abstract Keys : unit -> string[]
     
     abstract Count : int with get
     

@@ -1,6 +1,6 @@
 namespace Example.Cache.Core
 
-type RV<'T>( initialV: 'T option, fn:unit->'T, refreshIntervalMs:int option, ttlMs: int option ) =
+type RV<'T>( initialV: 'T option, fn:unit->'T option, refreshIntervalMs:int option, ttlMs: int option ) =
     
     let nextRefresh (t:System.DateTime) =
         refreshIntervalMs |> Option.map ( fun ms -> t.AddMilliseconds((float)ms))
@@ -9,7 +9,7 @@ type RV<'T>( initialV: 'T option, fn:unit->'T, refreshIntervalMs:int option, ttl
         ttlMs |> Option.map ( fun ms -> t.AddMilliseconds((float)ms))
         
     let mutable _v =
-        if initialV.IsSome then initialV.Value else fn()
+        if initialV.IsSome then initialV else fn()
     
     let mutable _nextRefresh =
         nextRefresh System.DateTime.UtcNow
@@ -20,8 +20,8 @@ type RV<'T>( initialV: 'T option, fn:unit->'T, refreshIntervalMs:int option, ttl
     static member Make<'T>( iv, fn, refresh, ttl ) =
         new RV<'T>( iv, fn, refresh, ttl )
         
-    static member Make<'T>( v:'T ) =
-        new RV<'T>( None, (fun _ -> v), None, None )
+    static member Constant<'T>( v:'T ) =
+        new RV<'T>( None, (fun _ -> Some v), None, None )
         
     member this.HasExpired
         with get () =
@@ -40,7 +40,7 @@ type RV<'T>( initialV: 'T option, fn:unit->'T, refreshIntervalMs:int option, ttl
     member this.Value
         with get () =
             if this.HasExpired then
-                failwithf "Unable to obtain expired value!"
+                None
             else
                 if this.NeedsRefresh then
                     this.Refresh()

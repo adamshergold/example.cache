@@ -3,7 +3,7 @@
 
     <PropertyGroup>
         <Example-Serialisation-Major>1</Example-Serialisation-Major> 
-        <Example-Serialisation-Minor>1</Example-Serialisation-Minor>
+        <Example-Serialisation-Minor>2</Example-Serialisation-Minor>
     </PropertyGroup>
 
     <PropertyGroup>
@@ -54,6 +54,8 @@
         <Example-xunit-runner-visualstudio-Version>2.4.0</Example-xunit-runner-visualstudio-Version>
         
         <Example-App-Metrics-Version>3.0.0</Example-App-Metrics-Version>
+
+        <Example-NodaTime-Version>2.4.4</Example-NodaTime-Version>
 
     </PropertyGroup>
 </Project>

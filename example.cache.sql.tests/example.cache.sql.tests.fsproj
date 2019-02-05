@@ -7,7 +7,7 @@
     <IsPackable>false</IsPackable>
   </PropertyGroup>
 
-  <ItemGroup>    
+  <ItemGroup>
     <Compile Include="test.cache.fs" />
   </ItemGroup>
 
@@ -30,8 +30,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\example.cache.core.tests\example.cache.core.tests.fsproj" />
-    <ProjectReference Include="..\example.cache.core\example.cache.core.fsproj" />
-    <ProjectReference Include="..\example.cache.memory\example.cache.memory.fsproj" />
     <ProjectReference Include="..\example.cache.sql\example.cache.sql.fsproj" />
   </ItemGroup>
 

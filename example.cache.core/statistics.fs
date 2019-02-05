@@ -16,7 +16,10 @@ type Statistics() =
     
     static member Make() =
         new Statistics()
-        
+
+    override this.ToString () =
+        sprintf "Statistics(Get=%d,Set=%d,Hit=%d (Ratio %g),Contains=%d,Remove=%d)" !get !set !hit ((float)(!hit)/((float)(!get))) !contains !remove
+            
     member this.Get () =
         System.Threading.Interlocked.Increment( get ) |> ignore
 
