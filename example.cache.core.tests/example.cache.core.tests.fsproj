@@ -1,0 +1,44 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <Import Project="../etc/common.props" />
+
+  <PropertyGroup>
+    <TargetFramework>netcoreapp2.1</TargetFramework>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    
+    <Compile Include="logging.fs" />
+    <Compile Include="random.fs" />
+    <Compile Include="types.fs" />
+    <Compile Include="helpers.fs" />
+    <Compile Include="test.interfaces.fs" />
+    <Compile Include="test.rv.fs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.msbuild" Version="$(Example-coverlet-msbuild-Version)">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="FSharp.Core" Version="$(Example-FSharp-Core-Version)" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="$(Example-Microsoft-Extensions-Logging-Version)" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="$(Example-Microsoft-NET-Test-Sdk-Version)" />
+    <PackageReference Include="xunit" Version="$(Example-xunit-Version)" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="$(Example-xunit-runner-visualstudio-Version)" />
+    <PackageReference Include="Serilog" Version="$(Example-Serilog-Version)" />
+    <PackageReference Include="Serilog.Extensions.Logging" Version="$(Example-Serilog-Extensions-Logging-Version)" />
+    <PackageReference Include="Serilog.Sinks.XUnit" Version="$(Example-Serilog-Sinks-XUnit-Version)" />
+    <PackageReference Include="Serilog.Sinks.Console" Version="$(Example-Serilog-Sinks-Console-Version)" />
+    <PackageReference Include="NodaTime" Version="$(Example-NodaTime-Version)" />
+    <PackageReference Include="example.serialisation" Version="$(Example-Serialisation-Version)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\example.cache.core\example.cache.core.fsproj" />
+    <ProjectReference Include="..\example.cache.memory\example.cache.memory.fsproj" />
+    <ProjectReference Include="..\example.cache.sql\example.cache.sql.fsproj" />
+  </ItemGroup>
+
+</Project>

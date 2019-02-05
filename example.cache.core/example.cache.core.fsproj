@@ -1,0 +1,25 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <Import Project="../etc/common.props"/>
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="GitVersionTask" Version="$(Example-GitVersionTask-Version)">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="FSharp.Core" Version="$(Example-FSharp-Core-Version)" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="$(Example-Microsoft-Extensions-Logging-Version)" />
+    <PackageReference Include="example.serialisation" Version="$(Example-Serialisation-Version)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="interfaces.fs" />
+    <Compile Include="statistics.fs" />
+    <Compile Include="rv.fs" />
+  </ItemGroup>
+
+</Project>
