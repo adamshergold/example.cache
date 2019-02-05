@@ -1,7 +1,5 @@
 namespace Example.Cache
 
-//open Example.Serialisation
-
 type IStatistics =
     abstract Get : int with get
     abstract Set : int with get
