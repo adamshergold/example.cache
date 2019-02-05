@@ -17,8 +17,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\example.messaging.core\example.messaging.core.fsproj" />
-    <ProjectReference Include="..\example.messaging.rabbit\example.messaging.rabbit.fsproj" />
+    <ProjectReference Include="..\example.cache.core\example.cache.core.fsproj" />
+    <ProjectReference Include="..\example.cache.memory\example.cache.memory.fsproj" />
+    <ProjectReference Include="..\example.cache.sql\example.cache.sql.fsproj" />
   </ItemGroup>
   
   <Target Name="UpdateNuspecProperties" AfterTargets="Build">
