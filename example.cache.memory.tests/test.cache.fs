@@ -78,13 +78,4 @@ type CacheShould( oh: ITestOutputHelper ) =
         Assert.Equal( nItems * nParallel, sut.Statistics.Get )            
         Assert.Equal( nItems * nParallel, sut.Statistics.Set )
         
-        // number of items in the cache should be limited by capacity 
-        //Assert.Equal( min nItems capacity, sut.Count )
-
-        // number of evictions + count = nItems?
-//        Assert.Equal( nItems, !evictions + sut.Count )
-//        
-//        Assert.Equal( nItems, sut.Statistics.Get )
-//        Assert.Equal( 0, sut.Statistics.Remove )
-        
         
