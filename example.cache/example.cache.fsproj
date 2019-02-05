@@ -5,7 +5,7 @@
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
     <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);CopyProjectReferencesToPackage</TargetsForTfmSpecificBuildOutput>
-    <NuspecFile>example.messaging.nuspec</NuspecFile>
+    <NuspecFile>example.cache.nuspec</NuspecFile>
   </PropertyGroup>
 
   <ItemGroup>
