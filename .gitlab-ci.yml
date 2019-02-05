@@ -14,6 +14,8 @@ build-test-publish:
     - ./codecov -f example.cache.core.tests/coverage.opencover.xml -t $CODECOV_TOKEN
     - dotnet test example.cache.memory.tests /p:CollectCoverage=true /p:CoverletOutputFormat=opencover
     - ./codecov -f example.cache.memory.tests/coverage.opencover.xml -t $CODECOV_TOKEN
+    - dotnet test example.cache.sql.tests /p:CollectCoverage=true /p:CoverletOutputFormat=opencover
+    - ./codecov -f example.cache.sql.tests/coverage.opencover.xml -t $CODECOV_TOKEN
     - dotnet pack example.cache -o $CI_PROJECT_DIR/nupkgs
     - ./etc/build/repack.sh $CI_PROJECT_DIR/nupkgs $CI_PROJECT_DIR/nupkgs.repack
     - dotnet nuget push $CI_PROJECT_DIR/nupkgs.repack/* -k $MYGET_APIKEY -s $MYGET_URL

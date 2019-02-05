@@ -27,8 +27,8 @@ type CacheShould( oh: ITestOutputHelper ) =
     static member ConnectionSpecs
         with get () =
             [|
-                //[| box <| DbConnectionSpecification.Sqlite( SqliteSpecification.Default ) |]
-                [| box <| DbConnectionSpecification.MySql( MySqlSpecification.Make( "localhost", "example", "example-pw", "example" ) ) |]
+                [| box <| DbConnectionSpecification.Sqlite( SqliteSpecification.Default ) |]
+                //[| box <| DbConnectionSpecification.MySql( MySqlSpecification.Make( "localhost", "example", "example-pw", "example" ) ) |]
             |]
        
     interface System.IDisposable
