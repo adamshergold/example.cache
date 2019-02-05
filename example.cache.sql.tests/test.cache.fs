@@ -6,7 +6,6 @@ open Xunit.Abstractions
 open Example.Cache
 open Example.Cache.Sql
 open Example.Cache.Core.Tests
-open Microsoft.Data.Sqlite
 
 type CacheShould( oh: ITestOutputHelper ) =
     
