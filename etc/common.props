@@ -6,7 +6,7 @@
         <Example-Serialisation-Minor>2</Example-Serialisation-Minor>
 
         <Example-Sql-Major>1</Example-Sql-Major> 
-        <Example-Sql-Minor>0</Example-Sql-Minor>
+        <Example-Sql-Minor>1</Example-Sql-Minor>
 
     </PropertyGroup>
 
