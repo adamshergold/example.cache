@@ -23,7 +23,7 @@ type CacheTesting() =
     static member Implementations
         with get () =
             seq {
-                yield [| ImplementationCreator.Make( "memory", (fun logger name -> Memory.Cache.Make( logger, name, Memory.Options.Default)) ) |]
+                yield [| ImplementationCreator.Make( "memory", (fun logger name -> Memory.Cache.Make( logger, name, Memory.Specification.Default)) ) |]
             }
             
 type CacheShould( oh: ITestOutputHelper ) = 

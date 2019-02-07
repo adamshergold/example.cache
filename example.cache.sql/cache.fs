@@ -7,7 +7,7 @@ open Example.Serialisation
 open Example.Cache
 open Example.Cache.Core
     
-type Cache<'V when 'V :> ITypeSerialisable>( logger: ILogger, name:string, serde:ISerde, connection:IDbConnection, options:Options ) =
+type Cache<'V when 'V :> ITypeSerialisable>( logger: ILogger, name:string, serde:ISerde, connection:IDbConnection, spec:Specification ) =
 
     let cacheTable_Name =
         sprintf "cache_%s" name
@@ -15,8 +15,8 @@ type Cache<'V when 'V :> ITypeSerialisable>( logger: ILogger, name:string, serde
     let cacheTable_MaxIdSize = 128
     
     let inlineCache =
-        let options = { Memory.Options.Default with TimeToLiveSeconds = Some 5 }
-        Memory.Cache<'V>.Make( logger, sprintf "inline-%s" name, options )
+        let spec = { Memory.Specification.Default with TimeToLiveSeconds = Some 5 }
+        Memory.Cache<'V>.Make( logger, sprintf "inline-%s" name, spec )
         
     let statistics =
         Core.Statistics.Make()
@@ -35,10 +35,10 @@ type Cache<'V when 'V :> ITypeSerialisable>( logger: ILogger, name:string, serde
     
     member val Statistics = statistics
     
-    static member Make<'V>( logger, name, serde, connection, options:ICacheOptions ) =
-        match options with
-        | :? Sql.Options as options ->
-            new Cache<'V>( logger, name, serde, connection, options ) :> IEnumerableCache<'V>
+    static member Make<'V>( logger, name, serde, connection, spec:ICacheSpecification ) =
+        match spec with
+        | :? Sql.Specification as spec ->
+            new Cache<'V>( logger, name, serde, connection, spec ) :> IEnumerableCache<'V>
         | _ ->
             failwithf "Invalid options type passed to Sqlite constructor!"
         
@@ -110,7 +110,7 @@ type Cache<'V when 'V :> ITypeSerialisable>( logger: ILogger, name:string, serde
         this.Check()
         
         let nRecordsAffected =
-            Helpers.Insert logger cacheTable_Name connection serde options.ContentType options.TimeToLiveSeconds k v 
+            Helpers.Insert logger cacheTable_Name connection serde spec.ContentType spec.TimeToLiveSeconds k v 
 
         logger.LogTrace( "SqlCache::Set - {nRecordsAffected} for key {Key}", nRecordsAffected, k )
                 
@@ -147,7 +147,7 @@ type Cache<'V when 'V :> ITypeSerialisable>( logger: ILogger, name:string, serde
             |> Seq.choose id
             
         let tryGetFromStore =
-            Helpers.TryGetKeys<'V> logger cacheTable_Name connection serde options.ContentType missingKeys
+            Helpers.TryGetKeys<'V> logger cacheTable_Name connection serde spec.ContentType missingKeys
 
         tryGetFromStore |> Map.iter ( fun k v -> inlineCache.Set k v )
         

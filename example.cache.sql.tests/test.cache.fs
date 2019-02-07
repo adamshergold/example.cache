@@ -47,7 +47,7 @@ type CacheShould( oh: ITestOutputHelper ) =
             "BeCreateableAndReportEmpty"
             
         let sut =
-            let options = Sql.Options.Default
+            let options = Sql.Specification.Default
             Sql.Cache<TestType>.Make( logger, cacheName, serde, connection, options )
             
         sut.Purge() |> ignore
@@ -70,7 +70,7 @@ type CacheShould( oh: ITestOutputHelper ) =
             "AllowSimpleSetAndGetAndRemove"
             
         let sut =
-            let options = Sql.Options.Default
+            let options = Sql.Specification.Default
             Sql.Cache<TestType>.Make( logger, cacheName, serde, connection, options )
             
         sut.Purge() |> ignore
@@ -110,7 +110,7 @@ type CacheShould( oh: ITestOutputHelper ) =
             
         let sut =
             let options =
-                { Sql.Options.Default with TimeToLiveSeconds = Some 1 }
+                { Sql.Specification.Default with TimeToLiveSeconds = Some 1 }
                 
             Sql.Cache<TestType>.Make( logger, cacheName, serde, connection, options )
             
@@ -148,7 +148,7 @@ type CacheShould( oh: ITestOutputHelper ) =
             
         let sut =
             let options =
-                Sql.Options.Default
+                Sql.Specification.Default
                 
             Sql.Cache<TestType>.Make( logger, cacheName, serde, connection, options )
 

@@ -25,7 +25,7 @@
     <Compile Include="connector.fs" />
     <Compile Include="connection.fs" />
     <Compile Include="factory.fs" />
-    <Compile Include="options.fs" />
+    <Compile Include="spec.fs" />
     <Compile Include="helpers.fs" />
     <Compile Include="cache.fs" />
   </ItemGroup>

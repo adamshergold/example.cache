@@ -1,6 +1,6 @@
 namespace Example.Cache
 
-//open Example.Serialisation
+open Microsoft.Extensions.Logging
 
 type IStatistics =
     abstract Get : int with get
@@ -50,7 +50,14 @@ type IEnumerableCache<'V> =
     
     abstract Count : int with get
     
+type ICacheSpecification = interface end
 
-
+//
+//type ICacheCreator =
+//    abstract TryCreate<'V> : ILogger -> name:string -> ICacheSpecification -> ICache<'V> option
+//
+//type ICacheFactory =
+//    abstract Register : ICacheCreator -> ICacheFactory
+//    abstract TryCreate<'V> : name:string -> ICacheSpecification -> ICache<'V> option
          
     

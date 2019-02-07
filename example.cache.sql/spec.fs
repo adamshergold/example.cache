@@ -2,7 +2,7 @@ namespace Example.Cache.Sql
 
 open Example.Cache
 
-type Options = {
+type Specification = {
     TimeToLiveSeconds : int option
     ContentType : string
     InlineRefeshIntervalSeconds : int
@@ -18,4 +18,4 @@ with
         InlineCacheMaxSize = 1024
     }
     
-    interface ICacheOptions
+    interface ICacheSpecification
