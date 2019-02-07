@@ -17,14 +17,10 @@
     <PackageReference Include="Microsoft.Data.Sqlite" Version="$(Example-Microsoft-Data-Sqlite-Version)" />
     <PackageReference Include="MySql.Data" Version="$(Example-MySql-Data-Version)" />
     <PackageReference Include="example.serialisation" Version="$(Example-Serialisation-Version)" />
+    <PackageReference Include="example.sql" Version="$(Example-Sql-Version)" />
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="utilities.fs" />
-    <Compile Include="interfaces.fs" />
-    <Compile Include="connector.fs" />
-    <Compile Include="connection.fs" />
-    <Compile Include="factory.fs" />
     <Compile Include="spec.fs" />
     <Compile Include="helpers.fs" />
     <Compile Include="cache.fs" />

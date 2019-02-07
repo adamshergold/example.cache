@@ -5,7 +5,7 @@ open Microsoft.Extensions.Logging
 open Example.Serialisation
 
 open Example.Cache
-open Example.Cache.Core
+open Example.Sql
     
 type Cache<'V when 'V :> ITypeSerialisable>( logger: ILogger, name:string, serde:ISerde, connection:IDbConnection, spec:Specification ) =
 

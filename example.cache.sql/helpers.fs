@@ -4,7 +4,7 @@ open Microsoft.Extensions.Logging
 
 open Example.Serialisation
 
-open Example.Cache.Sql
+open Example.Sql
 
 module Helpers =
     

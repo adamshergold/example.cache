@@ -27,7 +27,7 @@ module private MemoryCacheImpl =
 type Cache<'V> ( logger: ILogger, name:string, spec:Specification ) =
     
     let makeLRUNode (k:string) = 
-        System.Collections.Generic.LinkedListNode( LRUItem<'K>.Make(k,System.DateTime.UtcNow) )
+        System.Collections.Generic.LinkedListNode( LRUItem<'V>.Make(k,System.DateTime.UtcNow) )
     
     let slimLock = 
         new System.Threading.ReaderWriterLockSlim() 

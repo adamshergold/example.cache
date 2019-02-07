@@ -3,6 +3,8 @@ namespace Example.Cache.Sql.Tests
 open Xunit
 open Xunit.Abstractions
 
+open Example.Sql
+
 open Example.Cache
 open Example.Cache.Sql
 open Example.Cache.Core.Tests
