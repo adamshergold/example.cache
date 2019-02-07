@@ -72,6 +72,8 @@ type Cache<'V when 'V :> ITypeSerialisable>( logger: ILogger, name:string, serde
             
             inlineCache.Purge() |> ignore
             
+            this.Check()
+            
             let nRemoved =
                 Helpers.Purge logger cacheTable_Name connection
             
