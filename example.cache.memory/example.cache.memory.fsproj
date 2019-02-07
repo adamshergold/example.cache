@@ -18,7 +18,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="options.fs" />
+    <Compile Include="spec.fs" />
     <Compile Include="cache.fs" />
   </ItemGroup>
 

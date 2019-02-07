@@ -4,6 +4,10 @@
     <PropertyGroup>
         <Example-Serialisation-Major>1</Example-Serialisation-Major> 
         <Example-Serialisation-Minor>2</Example-Serialisation-Minor>
+
+        <Example-Sql-Major>1</Example-Sql-Major> 
+        <Example-Sql-Minor>1</Example-Sql-Minor>
+
     </PropertyGroup>
 
     <PropertyGroup>
@@ -16,16 +20,19 @@
         <When Condition=" '$(Example-Branch)' == 'master' ">
             <PropertyGroup>
                 <Example-Serialisation-Version>$(Example-Serialisation-Major).$(Example-Serialisation-Minor).0</Example-Serialisation-Version>
+                <Example-Sql-Version>$(Example-Sql-Major).$(Example-Sql-Minor).0</Example-Sql-Version>
             </PropertyGroup>
         </When>
         <When Condition=" '$(Example-Branch)' == 'release' ">
             <PropertyGroup>
                 <Example-Serialisation-Version>$(Example-Serialisation-Major).$([MSBuild]::Add($(Example-Serialisation-Minor), 1)).0-*</Example-Serialisation-Version>
+                <Example-Sql-Version>$(Example-Sql-Major).$([MSBuild]::Add($(Example-Sql-Minor), 1)).0-*</Example-Sql-Version>
             </PropertyGroup>
         </When>
         <Otherwise>
             <PropertyGroup>
                 <Example-Serialisation-Version>$(Example-Serialisation-Major).$([MSBuild]::Add($(Example-Serialisation-Minor), 1)).0-*</Example-Serialisation-Version>
+                <Example-Sql-Version>$(Example-Sql-Major).$([MSBuild]::Add($(Example-Sql-Minor), 1)).0-*</Example-Sql-Version>
             </PropertyGroup>
         </Otherwise>
     </Choose>   

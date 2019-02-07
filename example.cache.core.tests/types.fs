@@ -7,6 +7,7 @@ open NodaTime
 
 type TestType = {
     Id : string
+    Name : string
     DateOfBirth : LocalDate
 }
 with
@@ -14,13 +15,19 @@ with
         let rs = generator.NextString(32)
         let posNeg = if generator.NextBool() then -1.0 else 1.0
         let rd = LocalDate( generator.NextInt(1970,2000),generator.NextInt(1,12),generator.NextInt(1,28))
-        { Id = rs; DateOfBirth = rd }
-            
+        { Id = rs; Name = generator.NextString(32); DateOfBirth = rd }
+
+    static member RandomWithId (generator:Random.Generator) (id:int) =
+        let rs = sprintf "id%d" id
+        let posNeg = if generator.NextBool() then -1.0 else 1.0
+        let rd = LocalDate( generator.NextInt(1970,2000),generator.NextInt(1,12),generator.NextInt(1,28))
+        { Id = rs; Name = generator.NextString(32); DateOfBirth = rd }
+                
     static member Example =
-        { Id = "John Smith"; DateOfBirth = LocalDate( 1975, 1, 1) }
+        { Id = "1"; Name = "John Smith"; DateOfBirth = LocalDate( 1975, 1, 1) }
        
     member this.Clone () =
-        { Id = this.Id; DateOfBirth = this.DateOfBirth }
+        { Id = this.Id; Name = this.Name; DateOfBirth = this.DateOfBirth }
         
     interface ITypeSerialisable
     
@@ -43,7 +50,10 @@ with
                         
                         js.WriteProperty "Id"
                         js.WriteValue v.Id
-                        
+
+                        js.WriteProperty "Name"
+                        js.WriteValue v.Name
+                                                
                         js.WriteProperty "DateOfBirth"
                         js.Serialise v.DateOfBirth
                         
@@ -56,12 +66,14 @@ with
                             JsonDeserialiser.Make( serde, stream, this.ContentType, this.TypeName )
                             
                         jds.Handlers.On "Id" jds.ReadString
+                        jds.Handlers.On "Name" jds.ReadString
                         jds.Handlers.On "DateOfBirth" jds.ReadLocalDate
                             
                         jds.Deserialise()
                         
                         {
                             Id = jds.Handlers.TryItem<_>( "Id" ).Value
+                            Name = jds.Handlers.TryItem<_>( "Name" ).Value
                             DateOfBirth = jds.Handlers.TryItem<_>( "DateOfBirth" ).Value
                         } 
                  }

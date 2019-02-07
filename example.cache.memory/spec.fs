@@ -2,16 +2,18 @@ namespace Example.Cache.Memory
 
 open Example.Cache
 
-type Options = {
+type Specification = {
     InitialCapacity : int option
     MaxSize : int option
-    TimeToLiveSeconds : int option
+    TimeToLiveSeconds : int option    
 }
 with
     static member Default = {
         InitialCapacity = None
         MaxSize = None
-        TimeToLiveSeconds = Some 60
+        TimeToLiveSeconds = None
     }
+
+    interface ICacheSpecification
+       
     
-    interface ICacheOptions

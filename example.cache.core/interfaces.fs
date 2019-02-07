@@ -1,6 +1,6 @@
 namespace Example.Cache
 
-//open Example.Serialisation
+open Microsoft.Extensions.Logging
 
 type IStatistics =
     abstract Get : int with get
@@ -23,7 +23,7 @@ type ICache<'V> =
     
     abstract Exists : key:string -> bool
     
-    abstract TryGet : key:string -> 'V option
+    abstract TryGetKeys : keys:string[] -> ('V option)[]
     
     abstract Set : key:string -> 'V -> unit
     
@@ -50,7 +50,5 @@ type IEnumerableCache<'V> =
     
     abstract Count : int with get
     
-
-
-         
+type ICacheSpecification = interface end
     

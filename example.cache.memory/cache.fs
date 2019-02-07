@@ -24,10 +24,10 @@ module private MemoryCacheImpl =
         static member Make( item, n ) = 
             { Item = item; LRUNode = n }
 
-type Cache<'V> ( logger: ILogger, name:string, options:Options ) =
+type Cache<'V> ( logger: ILogger, name:string, spec:Specification ) =
     
     let makeLRUNode (k:string) = 
-        System.Collections.Generic.LinkedListNode( LRUItem<'K>.Make(k,System.DateTime.UtcNow) )
+        System.Collections.Generic.LinkedListNode( LRUItem<'V>.Make(k,System.DateTime.UtcNow) )
     
     let slimLock = 
         new System.Threading.ReaderWriterLockSlim() 
@@ -50,11 +50,11 @@ type Cache<'V> ( logger: ILogger, name:string, options:Options ) =
         Statistics.Make()
     
     let items =
-        if options.InitialCapacity.IsSome then 
-            new System.Collections.Generic.Dictionary<string,CacheItem<string,'V>>( options.InitialCapacity.Value )
+        if spec.InitialCapacity.IsSome then 
+            new System.Collections.Generic.Dictionary<string,CacheItem<string,'V>>( spec.InitialCapacity.Value )
         else
-            if options.MaxSize.IsSome then 
-                new System.Collections.Generic.Dictionary<string,CacheItem<string,'V>>( options.MaxSize.Value )
+            if spec.MaxSize.IsSome then 
+                new System.Collections.Generic.Dictionary<string,CacheItem<string,'V>>( spec.MaxSize.Value )
             else
                 new System.Collections.Generic.Dictionary<string,CacheItem<string,'V>>()
                 
@@ -83,14 +83,40 @@ type Cache<'V> ( logger: ILogger, name:string, options:Options ) =
         else 
             false 
     
+    let tryGet (k:string) =
+        
+        statistics.Get()
+        
+        let exists, item =
+            items.TryGetValue k
+
+        if not exists then
+            None
+        else
+            statistics.Hit()
+            
+            lru.Remove( item.LRUNode )
+            
+            items.Remove( k ) |> ignore
+            
+            let newItem =                        
+                CacheItem<_,_>.Make( item.Item, makeLRUNode k ) 
+    
+            items.Add( k, newItem )
+            lru.AddFirst( newItem.LRUNode )
+                    
+            onGet.Trigger(k)
+            
+            newItem.Item.Value
+                
     member val Name = name
     
     member val Statistics = statistics
     
-    static member Make<'V>( logger, name, options:ICacheOptions ) =
-        match options with
-        | :? Options as options ->
-            new Cache<'V>( logger, name, options ) :> IEnumerableCache<'V>
+    static member Make<'V>( logger, name, spec:ICacheSpecification ) =
+        match spec with
+        | :? Specification as spec ->
+            new Cache<'V>( logger, name, spec ) :> IEnumerableCache<'V>
         | _ ->
             failwithf "Invalid options type passed to Memory constructor!"
         
@@ -134,10 +160,10 @@ type Cache<'V> ( logger: ILogger, name:string, options:Options ) =
                 false
 
         let oversizedRemoved = 
-            if options.MaxSize.IsSome then 
+            if spec.MaxSize.IsSome then 
                 let n = ref 0
                 withWriteLock <| fun () ->
-                    while items.Count > options.MaxSize.Value do
+                    while items.Count > spec.MaxSize.Value do
                         if removeLast() then System.Threading.Interlocked.Increment( n ) |> ignore else ()
                 !n     
             else 
@@ -151,10 +177,10 @@ type Cache<'V> ( logger: ILogger, name:string, options:Options ) =
             let lastExpired ttlSeconds = 
                 (now - lru.Last.Value.CreatedAt).TotalSeconds > (float) ttlSeconds 
                 
-            if options.TimeToLiveSeconds.IsSome then 
+            if spec.TimeToLiveSeconds.IsSome then 
                 let n = ref 0 
                 withWriteLock <| fun () ->
-                    while lru.Count > 0 && lastExpired options.TimeToLiveSeconds.Value do
+                    while lru.Count > 0 && lastExpired spec.TimeToLiveSeconds.Value do
                         if removeLast() then System.Threading.Interlocked.Increment( n ) |> ignore else ()
                 !n     
             else 
@@ -189,33 +215,11 @@ type Cache<'V> ( logger: ILogger, name:string, options:Options ) =
         let nFlushed = this.Flush()
         onSet.Trigger( k)
 
-    member this.TryGet (k:string) =
-        logger.LogTrace( "MemoryCache::Get({CacheName}) - Called with key {Key}", this.Name, k )        
-        statistics.Get()
+    member this.TryGetKeys (keys:string[]) =
+        logger.LogTrace( "MemoryCache::Get({CacheName}) - Called with {nKeys} keys", this.Name, keys.Length )
         withWriteLock <| fun _ ->
-            
-            let exists, item =
-                items.TryGetValue k
-
-            if not exists then
-                None
-            else
-                statistics.Hit()
-                
-                lru.Remove( item.LRUNode )
-                
-                items.Remove( k ) |> ignore
-                
-                let newItem =                        
-                    CacheItem<_,_>.Make( item.Item, makeLRUNode k ) 
+            keys |> Array.map tryGet 
         
-                items.Add( k, newItem )
-                lru.AddFirst( newItem.LRUNode )
-                        
-                onGet.Trigger(k)
-                
-                newItem.Item.Value                         
-
     member this.Remove (k:string) =
         logger.LogTrace( "MemoryCache::Remove({CacheName}) - Called with key {Key}", this.Name, k )
         statistics.Remove()
@@ -226,7 +230,7 @@ type Cache<'V> ( logger: ILogger, name:string, options:Options ) =
         with
             member this.Dispose () =
                 this.Dispose()
-                
+          
     interface IEnumerableCache<'V>
         with
             member this.Count
@@ -253,8 +257,8 @@ type Cache<'V> ( logger: ILogger, name:string, options:Options ) =
             member this.Set k v =
                 this.Set k v
                 
-            member this.TryGet k =
-                this.TryGet k
+            member this.TryGetKeys keys =
+                this.TryGetKeys keys
                 
             member this.Remove k =
                 this.Remove k
@@ -274,3 +278,17 @@ type Cache<'V> ( logger: ILogger, name:string, options:Options ) =
             [<CLIEvent>]                    
             member this.OnEvicted =
                 onEvicted.Publish
+
+//type Creator () =
+//    static member Value
+//        with get () =
+//            { new ICacheCreator
+//                with
+//                    member this.TryCreate<'V> logger name spec =
+//                        match spec with
+//                        | :? Specification as spec ->
+//                            Some( new Cache<'V>( logger, name, spec ) :> ICache<'V> )
+//                        | _ ->
+//                            None }
+
+    

@@ -5,24 +5,18 @@ open Microsoft.Extensions.Logging
 open Example.Serialisation
 
 open Example.Cache
-open Example.Cache.Core
+open Example.Sql
     
-type Cache<'V when 'V :> ITypeSerialisable>( logger: ILogger, name:string, serde:ISerde, connection:IDbConnection, options:Options ) =
+type Cache<'V when 'V :> ITypeSerialisable>( logger: ILogger, name:string, serde:ISerde, connection:IDbConnection, spec:Specification ) =
 
     let cacheTable_Name =
         sprintf "cache_%s" name
     
     let cacheTable_MaxIdSize = 128
     
-    let cacheTable_now =
-        if connection.ConnectorType.Equals("sqlite",System.StringComparison.OrdinalIgnoreCase) then
-            "DATETIME('now')"
-        else
-            "NOW()"
-         
     let inlineCache =
-        let options = { Memory.Options.Default with TimeToLiveSeconds = Some 5 }
-        Memory.Cache<RV<'V>>.Make( logger, sprintf "inline-%s" name, options )
+        let spec = { Memory.Specification.Default with TimeToLiveSeconds = Some 5 }
+        Memory.Cache<'V>.Make( logger, sprintf "inline-%s" name, spec )
         
     let statistics =
         Core.Statistics.Make()
@@ -41,10 +35,10 @@ type Cache<'V when 'V :> ITypeSerialisable>( logger: ILogger, name:string, serde
     
     member val Statistics = statistics
     
-    static member Make<'V>( logger, name, serde, connection, options:ICacheOptions ) =
-        match options with
-        | :? Sql.Options as options ->
-            new Cache<'V>( logger, name, serde, connection, options ) :> IEnumerableCache<'V>
+    static member Make<'V>( logger, name, serde, connection, spec:ICacheSpecification ) =
+        match spec with
+        | :? Sql.Specification as spec ->
+            new Cache<'V>( logger, name, serde, connection, spec ) :> IEnumerableCache<'V>
         | _ ->
             failwithf "Invalid options type passed to Sqlite constructor!"
         
@@ -67,21 +61,23 @@ type Cache<'V when 'V :> ITypeSerialisable>( logger: ILogger, name:string, serde
         let nRecordsAffected =
             Helpers.Setup logger cacheTable_Name cacheTable_MaxIdSize connection 
 
-        logger.LogDebug( "SqlCache::Setup - {nRecordsAffected} records affected", nRecordsAffected )
+        logger.LogTrace( "SqlCache::Setup - {nRecordsAffected} records affected", nRecordsAffected )
 
                 
     member this.Purge () =
         
-        logger.LogDebug( "SqlCache::Purge - Called")
+        logger.LogTrace( "SqlCache::Purge - Called")
         
         lock this <| fun _ ->
             
             inlineCache.Purge() |> ignore
             
+            this.Check()
+            
             let nRemoved =
                 Helpers.Purge logger cacheTable_Name connection
             
-            logger.LogDebug( "SqlCache::Clean - Purged {ItemsRemoved} items from store", nRemoved )
+            logger.LogTrace( "SqlCache::Clean - Purged {ItemsRemoved} items from store", nRemoved )
             
             nRemoved
         
@@ -89,14 +85,14 @@ type Cache<'V when 'V :> ITypeSerialisable>( logger: ILogger, name:string, serde
     member this.Clean () =
         
         async {
-            logger.LogDebug( "SqlCache::Clean - Called")
+            logger.LogTrace( "SqlCache::Clean - Called")
             
             this.Check()
             
             let nCleaned =
                 Helpers.Clean logger cacheTable_Name connection
                 
-            logger.LogDebug( "SqlCache::Clean - Removed {ItemsRemoved} items from store", nCleaned )
+            logger.LogTrace( "SqlCache::Clean - Removed {ItemsRemoved} items from store", nCleaned )
             
             do! inlineCache.Clean()
         }
@@ -104,11 +100,11 @@ type Cache<'V when 'V :> ITypeSerialisable>( logger: ILogger, name:string, serde
         
     member this.Keys () =
         
-        logger.LogDebug( "SqlCache::Keys - Called" )
+        logger.LogTrace( "SqlCache::Keys - Called" )
         
         this.Check()
         
-        Helpers.Keys logger cacheTable_Name cacheTable_now connection
+        Helpers.Keys logger cacheTable_Name connection
                    
                     
     member this.Set (k:string) (v:ITypeSerialisable) =
@@ -116,14 +112,14 @@ type Cache<'V when 'V :> ITypeSerialisable>( logger: ILogger, name:string, serde
         this.Check()
         
         let nRecordsAffected =
-            Helpers.Insert logger cacheTable_Name connection serde options.ContentType options.TimeToLiveSeconds k v 
+            Helpers.Insert logger cacheTable_Name connection serde spec.ContentType spec.TimeToLiveSeconds k v 
 
-        logger.LogDebug( "SqlCache::Set - {nRecordsAffected} for key {Key}", nRecordsAffected, k )
+        logger.LogTrace( "SqlCache::Set - {nRecordsAffected} for key {Key}", nRecordsAffected, k )
                 
             
     member this.Exists (k:string) =
         
-        logger.LogDebug( "SqlCache::Exists - Called with key {Key}", k )
+        logger.LogTrace( "SqlCache::Exists - Called with key {Key}", k )
         
         this.Check()
         
@@ -139,39 +135,31 @@ type Cache<'V when 'V :> ITypeSerialisable>( logger: ILogger, name:string, serde
                 false
                 
                 
-    member this.TryGet (k:string) =
-        logger.LogDebug( "SqlCache::TryGet - Called with key {Key}", k )
-
-        let retrieve (k:string) =
-            logger.LogDebug( "SqlCache::TryGet - Retrieve called for key {Key}", k )
-            this.Check()
-            Helpers.TryGet logger cacheTable_Name connection serde options.ContentType k 
-
-        let refreshingValue =
-            lock inlineCache <| fun _ ->
-                match inlineCache.TryGet k with
-                | Some rv ->
-                    rv
-                | None ->
-                    let rv =
-                        RV<_>.Make(
-                            None,
-                            (fun () -> retrieve k),
-                            Some (1000*options.InlineRefeshIntervalSeconds),
-                            Some (1000*options.InlineTimeToLiveSeconds) )
-                    inlineCache.Set k rv
-                    rv
-
-        let result =
-            refreshingValue.Value
+    member this.TryGetKeys (keys:string[]) =
+        
+        this.Check()
+        
+        let tryGetInline =
+            inlineCache.TryGetKeys keys
             
-        logger.LogDebug( "SqlCache::TryGet - {Result} for key {Key}", (if result.IsSome then "result found" else "no result"), k )
-           
-        result   
+        let missingKeys =
+            tryGetInline
+            |> Seq.mapi ( fun idx v ->
+                if v.IsSome then None else Some keys.[idx] )
+            |> Seq.choose id
+            
+        let tryGetFromStore =
+            Helpers.TryGetKeys<'V> logger cacheTable_Name connection serde spec.ContentType missingKeys
 
+        tryGetFromStore |> Map.iter ( fun k v -> inlineCache.Set k v )
+        
+        Array.init keys.Length (fun idx ->
+            let prev = tryGetInline.[idx]
+            if prev.IsSome then prev else tryGetFromStore.TryFind keys.[idx] )
+    
     
     member this.Remove (k:string) =
-        logger.LogDebug( "SqlCache::Remove - Called with key {Key}", k )
+        logger.LogTrace( "SqlCache::Remove - Called with key {Key}", k )
 
         lock this <| fun _ ->
             
@@ -183,7 +171,7 @@ type Cache<'V when 'V :> ITypeSerialisable>( logger: ILogger, name:string, serde
                 Helpers.Remove logger cacheTable_Name connection k
     
             recordsAffected > 0
-                    
+                 
                     
     interface System.IDisposable
         with
@@ -217,8 +205,8 @@ type Cache<'V when 'V :> ITypeSerialisable>( logger: ILogger, name:string, serde
             member this.Set k v =
                 this.Set k v
                 
-            member this.TryGet k =
-                this.TryGet k
+            member this.TryGetKeys keys =
+                this.TryGetKeys keys
                 
             member this.Remove k =
                 this.Remove k

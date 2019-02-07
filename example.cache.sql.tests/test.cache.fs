@@ -3,6 +3,8 @@ namespace Example.Cache.Sql.Tests
 open Xunit
 open Xunit.Abstractions
 
+open Example.Sql
+
 open Example.Cache
 open Example.Cache.Sql
 open Example.Cache.Core.Tests
@@ -28,6 +30,7 @@ type CacheShould( oh: ITestOutputHelper ) =
             [|
                 [| box <| DbConnectionSpecification.Sqlite( SqliteSpecification.Default ) |]
                 //[| box <| DbConnectionSpecification.MySql( MySqlSpecification.Make( "localhost", "example", "example-pw", "example" ) ) |]
+                //[| box <| DbConnectionSpecification.SqlServer( SqlServerSpecification.Make( "Server=tcp:server-example-20192.database.windows.net,1433;Initial Catalog=example;Persist Security Info=False;User ID=example-admin;Password=<>;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;") ) |]
             |]
        
     interface System.IDisposable
@@ -46,9 +49,11 @@ type CacheShould( oh: ITestOutputHelper ) =
             "BeCreateableAndReportEmpty"
             
         let sut =
-            let options = Sql.Options.Default
+            let options = Sql.Specification.Default
             Sql.Cache<TestType>.Make( logger, cacheName, serde, connection, options )
             
+        sut.Purge() |> ignore
+        
         Assert.Equal( 0, sut.Keys().Length )
         
         Assert.Equal( 0, sut.Statistics.Get )
@@ -67,9 +72,11 @@ type CacheShould( oh: ITestOutputHelper ) =
             "AllowSimpleSetAndGetAndRemove"
             
         let sut =
-            let options = Sql.Options.Default
+            let options = Sql.Specification.Default
             Sql.Cache<TestType>.Make( logger, cacheName, serde, connection, options )
             
+        sut.Purge() |> ignore
+        
         let tt =
             TestType.Random generator
             
@@ -77,21 +84,25 @@ type CacheShould( oh: ITestOutputHelper ) =
         
         Assert.True( sut.Exists tt.Id )
         
-        let v = sut.TryGet tt.Id
+        let vs = sut.TryGetKeys [| tt.Id |]
         
-        Assert.True( v.IsSome )
+        Assert.True( vs.Length = 1 )
+        Assert.True( vs.[0].IsSome )
         
-        Assert.Equal( tt, v.Value )
+        Assert.Equal( tt, vs.[0].Value )
         
         Assert.True( sut.Remove tt.Id )
         
-        Assert.True( (sut.TryGet tt.Id).IsNone )
+        let vs = sut.TryGetKeys [| tt.Id |]
+        
+        Assert.True( vs.Length = 1 )
+        Assert.True( vs.[0].IsNone )
         
         Assert.Equal( 0, sut.Purge() )
         
     [<Theory>]
     [<MemberData("ConnectionSpecs")>]
-    member this.``AllowSimpleSetWIthExpiry`` (spec:DbConnectionSpecification) =
+    member this.``AllowSimpleSetWithExpiry`` (spec:DbConnectionSpecification) =
         
         use connection =
             factory.Create "test" spec
@@ -101,23 +112,60 @@ type CacheShould( oh: ITestOutputHelper ) =
             
         let sut =
             let options =
-                { Sql.Options.Default with TimeToLiveSeconds = Some 1 }
+                { Sql.Specification.Default with TimeToLiveSeconds = Some 1 }
                 
             Sql.Cache<TestType>.Make( logger, cacheName, serde, connection, options )
             
+        sut.Purge() |> ignore
+        
         let tt =
             TestType.Random generator
             
         sut.Set tt.Id tt
 
-        // just over 1 second
-        System.Threading.Thread.Sleep( 1300 )
+        // sleep well over the expiry time
+        System.Threading.Thread.Sleep( 2000 )
         
         sut.Clean() |> Async.RunSynchronously
         
         // should have been tidied-up!
-        let v = sut.TryGet tt.Id
+        let vs = sut.TryGetKeys [| tt.Id |]
         
-        Assert.True( v.IsNone )
+        Assert.True( vs.Length = 1 )
+        Assert.True( vs.[0].IsNone )
     
+    
+    [<Theory>]
+    [<MemberData("ConnectionSpecs")>]
+    member this.``InsertManyAndGetAsync`` (spec:DbConnectionSpecification) =
+        
+        use connection =
+            factory.Create "test" spec
+            
+        let cacheName =
+            "InsertManyAndGetAsync"
+            
+        let testItems =
+            Array.init (generator.NextInt(100,500)) ( fun idx -> TestType.RandomWithId generator idx )
+            
+        let sut =
+            let options =
+                Sql.Specification.Default
+                
+            Sql.Cache<TestType>.Make( logger, cacheName, serde, connection, options )
+
+        sut.Purge() |> ignore
+        
+        testItems |> Array.iter ( fun tt -> sut.Set tt.Id tt )            
+
+        let ids =
+            Seq.initInfinite ( fun _ -> testItems.[ generator.NextInt(0,testItems.Length-1) ].Id ) |> Seq.truncate (testItems.Length/2) |> Array.ofSeq
+            
+        let results =
+            sut.TryGetKeys ids 
+            
+        Assert.Equal( ids.Length, results.Length )
+        
+        
+        
                 

@@ -20,7 +20,7 @@ type CacheShould( oh: ITestOutputHelper ) =
     member this.``BeCreateableAndReportEmpty`` () =
         
         let sut =
-            let options = Memory.Options.Default
+            let options = Memory.Specification.Default
             Memory.Cache<TestType>.Make( logger, "test", options )
             
         Assert.Equal( 0, sut.Keys().Length )
@@ -42,7 +42,7 @@ type CacheShould( oh: ITestOutputHelper ) =
     member this.``WorkSuccessfullyWithMultiReaderAndWritersAndVaryingCapacityAndSize`` (nParallel:int) (nItems:int) (capacity:int) =
         
         let sut =
-            let options = { Memory.Options.Default with MaxSize = Some( capacity ) }
+            let options = { Memory.Specification.Default with MaxSize = Some( capacity ) }
             
             Memory.Cache<TestType>.Make( logger, "test", options )
 
@@ -61,8 +61,7 @@ type CacheShould( oh: ITestOutputHelper ) =
                         sut.Set itemToPut.Id itemToPut
                         itemToPut.Id
                     
-                idsThatWereSet |> Array.iter ( fun id -> 
-                    sut.TryGet id |> ignore )
+                sut.TryGetKeys idsThatWereSet |> ignore    
             }                     
         
         let work =
