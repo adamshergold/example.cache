@@ -1,5 +1,7 @@
 namespace Example.Cache
 
+//open Example.Serialisation
+
 type IStatistics =
     abstract Get : int with get
     abstract Set : int with get
@@ -21,7 +23,7 @@ type ICache<'V> =
     
     abstract Exists : key:string -> bool
     
-    abstract TryGet : key:string -> 'V option
+    abstract TryGetKeys : keys:string[] -> ('V option)[]
     
     abstract Set : key:string -> 'V -> unit
     

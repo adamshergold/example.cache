@@ -83,6 +83,32 @@ type Cache<'V> ( logger: ILogger, name:string, options:Options ) =
         else 
             false 
     
+    let tryGet (k:string) =
+        
+        statistics.Get()
+        
+        let exists, item =
+            items.TryGetValue k
+
+        if not exists then
+            None
+        else
+            statistics.Hit()
+            
+            lru.Remove( item.LRUNode )
+            
+            items.Remove( k ) |> ignore
+            
+            let newItem =                        
+                CacheItem<_,_>.Make( item.Item, makeLRUNode k ) 
+    
+            items.Add( k, newItem )
+            lru.AddFirst( newItem.LRUNode )
+                    
+            onGet.Trigger(k)
+            
+            newItem.Item.Value
+                
     member val Name = name
     
     member val Statistics = statistics
@@ -189,33 +215,11 @@ type Cache<'V> ( logger: ILogger, name:string, options:Options ) =
         let nFlushed = this.Flush()
         onSet.Trigger( k)
 
-    member this.TryGet (k:string) =
-        logger.LogTrace( "MemoryCache::Get({CacheName}) - Called with key {Key}", this.Name, k )        
-        statistics.Get()
+    member this.TryGetKeys (keys:string[]) =
+        logger.LogTrace( "MemoryCache::Get({CacheName}) - Called with {nKeys} keys", this.Name, keys.Length )
         withWriteLock <| fun _ ->
-            
-            let exists, item =
-                items.TryGetValue k
-
-            if not exists then
-                None
-            else
-                statistics.Hit()
-                
-                lru.Remove( item.LRUNode )
-                
-                items.Remove( k ) |> ignore
-                
-                let newItem =                        
-                    CacheItem<_,_>.Make( item.Item, makeLRUNode k ) 
+            keys |> Array.map tryGet 
         
-                items.Add( k, newItem )
-                lru.AddFirst( newItem.LRUNode )
-                        
-                onGet.Trigger(k)
-                
-                newItem.Item.Value                         
-
     member this.Remove (k:string) =
         logger.LogTrace( "MemoryCache::Remove({CacheName}) - Called with key {Key}", this.Name, k )
         statistics.Remove()
@@ -253,8 +257,8 @@ type Cache<'V> ( logger: ILogger, name:string, options:Options ) =
             member this.Set k v =
                 this.Set k v
                 
-            member this.TryGet k =
-                this.TryGet k
+            member this.TryGetKeys keys =
+                this.TryGetKeys keys
                 
             member this.Remove k =
                 this.Remove k

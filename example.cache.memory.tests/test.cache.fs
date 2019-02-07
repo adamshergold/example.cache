@@ -61,8 +61,7 @@ type CacheShould( oh: ITestOutputHelper ) =
                         sut.Set itemToPut.Id itemToPut
                         itemToPut.Id
                     
-                idsThatWereSet |> Array.iter ( fun id -> 
-                    sut.TryGet id |> ignore )
+                sut.TryGetKeys idsThatWereSet |> ignore    
             }                     
         
         let work =

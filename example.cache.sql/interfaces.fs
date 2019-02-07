@@ -12,6 +12,13 @@ with
 
     static member Make( cs ) =
         { ConnectionString = cs }
+
+type SqlServerSpecification = {
+    Value : string 
+}
+with
+    static member Make( v ) =
+        { Value = v }
         
 type MySqlSpecification = {
     Server : string
@@ -45,6 +52,7 @@ with
 type DbConnectionSpecification =
     | Sqlite of SqliteSpecification
     | MySql of MySqlSpecification
+    | SqlServer of SqlServerSpecification
     
 type IDbConnection =
     inherit System.IDisposable

@@ -11,7 +11,7 @@ with
     static member Default = {
         InitialCapacity = None
         MaxSize = None
-        TimeToLiveSeconds = Some 60
+        TimeToLiveSeconds = None
     }
     
     interface ICacheOptions

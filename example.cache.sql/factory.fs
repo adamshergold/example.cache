@@ -4,6 +4,7 @@ open Microsoft.Extensions.Logging
 
 open Microsoft.Data.Sqlite
 open MySql.Data.MySqlClient
+open System.Data.SqlClient
 
 type DbConnectionFactory( logger: ILogger, initialConnections:seq<string*DbConnectionSpecification> ) as this =
     
@@ -48,6 +49,9 @@ type DbConnectionFactory( logger: ILogger, initialConnections:seq<string*DbConne
                             sprintf "%s=%s" k v )
                         |> String.concat ";"
                     DbConnector.Make( new MySqlConnection(connectionString) )
+                    
+                | DbConnectionSpecification.SqlServer(spec)  ->
+                    DbConnector.Make( new SqlConnection( spec.Value ) )
                     
             let connection =
                 DbConnection.Make( connector )
