@@ -13,6 +13,7 @@
     </PackageReference>
     <PackageReference Include="FSharp.Core" Version="$(Example-FSharp-Core-Version)" />
     <PackageReference Include="Microsoft.Extensions.Logging" Version="$(Example-Microsoft-Extensions-Logging-Version)" />
+    <PackageReference Include="App.Metrics" Version="$(Example-App-Metrics-Version)" />
     <PackageReference Include="example.serialisation" Version="$(Example-Serialisation-Version)" />
   </ItemGroup>
 
@@ -21,6 +22,7 @@
     <Compile Include="statistics.fs" />
     <Compile Include="rv.fs" />
     <Compile Include="factory.fs" />
+    <Compile Include="metrics.fs" />
   </ItemGroup>
 
 </Project>

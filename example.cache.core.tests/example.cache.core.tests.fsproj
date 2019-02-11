@@ -10,6 +10,7 @@
   <ItemGroup>
     
     <Compile Include="logging.fs" />
+    <Compile Include="metrics.fs" />
     <Compile Include="random.fs" />
     <Compile Include="types.fs" />
     <Compile Include="helpers.fs" />

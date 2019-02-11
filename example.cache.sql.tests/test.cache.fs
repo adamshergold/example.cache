@@ -15,6 +15,9 @@ type CacheShould( oh: ITestOutputHelper ) =
     
     let logger =
         Logging.CreateLogger oh
+    
+    let metrics =
+        Metrics.CreateMetrics()
         
     let generator =
         Random.Generator.Make()
@@ -52,11 +55,11 @@ type CacheShould( oh: ITestOutputHelper ) =
             
         let sut =
             let options = Sql.Specification.Default
-            Sql.Cache<TestType>.Make( logger, cacheName, serde, connection, options )
+            Sql.Cache<TestType>.Make( logger, cacheName, metrics, serde, connection, options )
 
         sut.Purge() |> ignore
         
-        let nItems = 10000
+        let nItems = 100000
         
         let batchSize =
             if connection.ConnectorType.Equals("sqlite",System.StringComparison.OrdinalIgnoreCase) then 250 else 1000
@@ -73,6 +76,8 @@ type CacheShould( oh: ITestOutputHelper ) =
             logger.LogInformation( "Processing batch {BatchIndex} with {nItems} items", idx, batch.Length )
             sut.SetKeys batch )
         
+        Metrics.DumpMetrics metrics logger
+        
         Assert.True( true )
         
     [<Theory>]
@@ -87,7 +92,7 @@ type CacheShould( oh: ITestOutputHelper ) =
             
         let sut =
             let options = Sql.Specification.Default
-            Sql.Cache<TestType>.Make( logger, cacheName, serde, connection, options )
+            Sql.Cache<TestType>.Make( logger, cacheName, metrics, serde, connection, options )
             
         sut.Purge() |> ignore
         
@@ -110,7 +115,7 @@ type CacheShould( oh: ITestOutputHelper ) =
             
         let sut =
             let options = Sql.Specification.Default
-            Sql.Cache<TestType>.Make( logger, cacheName, serde, connection, options )
+            Sql.Cache<TestType>.Make( logger, cacheName, metrics, serde, connection, options )
             
         sut.Purge() |> ignore
         
@@ -151,7 +156,7 @@ type CacheShould( oh: ITestOutputHelper ) =
             let options =
                 { Sql.Specification.Default with TimeToLiveSeconds = Some 1 }
                 
-            Sql.Cache<TestType>.Make( logger, cacheName, serde, connection, options )
+            Sql.Cache<TestType>.Make( logger, cacheName, metrics, serde, connection, options )
             
         sut.Purge() |> ignore
         
@@ -189,7 +194,7 @@ type CacheShould( oh: ITestOutputHelper ) =
             let options =
                 Sql.Specification.Default
                 
-            Sql.Cache<TestType>.Make( logger, cacheName, serde, connection, options )
+            Sql.Cache<TestType>.Make( logger, cacheName, metrics, serde, connection, options )
 
         sut.Purge() |> ignore
         

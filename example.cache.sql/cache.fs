@@ -2,13 +2,20 @@ namespace Example.Cache.Sql
 
 open Microsoft.Extensions.Logging
 
+open App.Metrics
+
 open Example.Serialisation
 
 open Example.Cache
+open Example.Cache.Core
+
 open Example.Sql
     
-type Cache<'V when 'V :> ITypeSerialisable>( logger: ILogger, name:string, serde:ISerde, connection:IDbConnection, spec:Specification ) =
+type Cache<'V when 'V :> ITypeSerialisable>( logger: ILogger, name:string, metrics:IMetrics, serde:ISerde, connection:IDbConnection, spec:Specification ) =
 
+    let timer =
+        Metrics.CreateTimer "cache-requests" (Some name)
+        
     let cacheTable_Name =
         sprintf "cache_%s" name
     
@@ -35,10 +42,10 @@ type Cache<'V when 'V :> ITypeSerialisable>( logger: ILogger, name:string, serde
     
     member val Statistics = statistics
     
-    static member Make<'V>( logger, name, serde, connection, spec:ICacheSpecification ) =
+    static member Make<'V>( logger, name, metrics, serde, connection, spec:ICacheSpecification ) =
         match spec with
         | :? Sql.Specification as spec ->
-            new Cache<'V>( logger, name, serde, connection, spec ) :> IEnumerableCache<'V>
+            new Cache<'V>( logger, name, metrics, serde, connection, spec ) :> IEnumerableCache<'V>
         | _ ->
             failwithf "Invalid options type passed to Sqlite constructor!"
         
@@ -109,15 +116,18 @@ type Cache<'V when 'V :> ITypeSerialisable>( logger: ILogger, name:string, serde
                     
     member this.SetKeys (kvs:(string*'V)[]) =
         
-        this.Check()
-        
-        let nRecordsAffected =
-            Helpers.Insert logger cacheTable_Name connection serde spec.ContentType spec.TimeToLiveSeconds kvs 
-
-        if nRecordsAffected <> kvs.Length then
-            failwithf "Mismatch between number of items provided ('%d') and number written ('%d')" kvs.Length nRecordsAffected
+        let tags = new MetricTags( "action", "set" )
+        using( metrics.Measure.Timer.Time( timer, tags ) ) <| fun timerContext ->
             
-        logger.LogTrace( "SqlCache::Set - {nRecordsAffected} {nKeys}", nRecordsAffected, kvs.Length)
+            this.Check()
+            
+            let nRecordsAffected =
+                Helpers.Insert logger cacheTable_Name connection serde spec.ContentType spec.TimeToLiveSeconds kvs 
+    
+            if nRecordsAffected <> kvs.Length then
+                failwithf "Mismatch between number of items provided ('%d') and number written ('%d')" kvs.Length nRecordsAffected
+                
+            logger.LogTrace( "SqlCache::Set - {nRecordsAffected} {nKeys}", nRecordsAffected, kvs.Length)
                 
             
     member this.Exists (k:string) =
