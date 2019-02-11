@@ -58,7 +58,7 @@ type CacheShould( oh: ITestOutputHelper ) =
                 let idsThatWereSet =                 
                     Array.init nItems <| fun idx -> 
                         let itemToPut = testItems.[ generator.NextInt( 0, testItems.Length-1) ]
-                        sut.Set itemToPut.Id itemToPut
+                        sut.SetKeys <| Array.singleton (itemToPut.Id,itemToPut)
                         itemToPut.Id
                     
                 sut.TryGetKeys idsThatWereSet |> ignore    

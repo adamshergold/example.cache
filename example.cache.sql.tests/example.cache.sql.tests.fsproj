@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <Compile Include="test.cache.fs" />
+    <Compile Include="test.adhoc.fs" />
   </ItemGroup>
 
   <ItemGroup>

@@ -190,31 +190,37 @@ type Cache<'V> ( logger: ILogger, name:string, spec:Specification ) =
         
         oversizedRemoved + expiredRemoved           
         
-    member this.Set (k:string) (v:'V) =
-        logger.LogTrace( "MemoryCache::Set({CacheName}) - Called with key {Key}", this.Name, k )
-        statistics.Set()
-        withWriteLock <| fun _ ->        
-            let exists, item = 
-                items.TryGetValue k                                    
-
-            let newItem =                        
-                if exists then
-                    // if exists, remove from the node from LRU list - O(1)
-                    lru.Remove( item.LRUNode )
-                    // remove key from cache - O(1)
-                    items.Remove( k ) |> ignore
-                    CacheItem<_,_>.Make( item.Item, makeLRUNode k ) 
-                else 
-                    CacheItem<_,_>.Make( RV<_>.Constant( v ), makeLRUNode k )                     
-                        
-            // put the item into the cache                        
-            items.Add( k, newItem )
-            // add the node to front of LRU list
-            lru.AddFirst( newItem.LRUNode )
+    member this.SetKeys (kvs:seq<string*'V>) =
+        logger.LogTrace( "MemoryCache::SetKeys({CacheName}) - Called" )
+        
+        withWriteLock <| fun _ ->
             
-        let nFlushed = this.Flush()
-        onSet.Trigger( k)
-
+            kvs |> Seq.iter ( fun (k,v) ->
+                
+                statistics.Set()
+                
+                let exists, item = 
+                    items.TryGetValue k                                    
+    
+                let newItem =                        
+                    if exists then
+                        // if exists, remove from the node from LRU list - O(1)
+                        lru.Remove( item.LRUNode )
+                        // remove key from cache - O(1)
+                        items.Remove( k ) |> ignore
+                        CacheItem<_,_>.Make( item.Item, makeLRUNode k ) 
+                    else 
+                        CacheItem<_,_>.Make( RV<_>.Constant( v ), makeLRUNode k )                     
+                            
+                // put the item into the cache                        
+                items.Add( k, newItem )
+                // add the node to front of LRU list
+                lru.AddFirst( newItem.LRUNode )
+                
+                onSet.Trigger( k ) )
+                
+        this.Flush() |> ignore
+            
     member this.TryGetKeys (keys:string[]) =
         logger.LogTrace( "MemoryCache::Get({CacheName}) - Called with {nKeys} keys", this.Name, keys.Length )
         withWriteLock <| fun _ ->
@@ -254,8 +260,8 @@ type Cache<'V> ( logger: ILogger, name:string, spec:Specification ) =
             member this.Keys () =
                 this.Keys()
                 
-            member this.Set k v =
-                this.Set k v
+            member this.SetKeys kvs =
+                this.SetKeys kvs
                 
             member this.TryGetKeys keys =
                 this.TryGetKeys keys

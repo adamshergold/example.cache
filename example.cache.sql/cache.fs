@@ -107,14 +107,17 @@ type Cache<'V when 'V :> ITypeSerialisable>( logger: ILogger, name:string, serde
         Helpers.Keys logger cacheTable_Name connection
                    
                     
-    member this.Set (k:string) (v:ITypeSerialisable) =
+    member this.SetKeys (kvs:(string*'V)[]) =
         
         this.Check()
         
         let nRecordsAffected =
-            Helpers.Insert logger cacheTable_Name connection serde spec.ContentType spec.TimeToLiveSeconds k v 
+            Helpers.Insert logger cacheTable_Name connection serde spec.ContentType spec.TimeToLiveSeconds kvs 
 
-        logger.LogTrace( "SqlCache::Set - {nRecordsAffected} for key {Key}", nRecordsAffected, k )
+        if nRecordsAffected <> kvs.Length then
+            failwithf "Mismatch between number of items provided ('%d') and number written ('%d')" kvs.Length nRecordsAffected
+            
+        logger.LogTrace( "SqlCache::Set - {nRecordsAffected} {nKeys}", nRecordsAffected, kvs.Length)
                 
             
     member this.Exists (k:string) =
@@ -125,8 +128,8 @@ type Cache<'V when 'V :> ITypeSerialisable>( logger: ILogger, name:string, serde
         
         let cmd =
             connection.CreateCommand
-                (sprintf "SELECT COUNT(*) FROM %s WHERE Id = @Id" cacheTable_Name)
-                (Seq.singleton ("@Id",box(k)))
+                (sprintf "SELECT COUNT(*) FROM %s WHERE CKey = @CKey" cacheTable_Name)
+                (Seq.singleton ("@CKey",box(k)))
 
         using( cmd.ExecuteReader() ) <| fun reader ->
             if reader.Read() then
@@ -151,11 +154,14 @@ type Cache<'V when 'V :> ITypeSerialisable>( logger: ILogger, name:string, serde
         let tryGetFromStore =
             Helpers.TryGetKeys<'V> logger cacheTable_Name connection serde spec.ContentType missingKeys
 
-        tryGetFromStore |> Map.iter ( fun k v -> inlineCache.Set k v )
+        //tryGetFromStore |> Map.iter ( fun k v -> inlineCache.Set k v )
+        inlineCache.SetKeys tryGetFromStore
+        
+        let asMap = tryGetFromStore |> Map.ofSeq
         
         Array.init keys.Length (fun idx ->
             let prev = tryGetInline.[idx]
-            if prev.IsSome then prev else tryGetFromStore.TryFind keys.[idx] )
+            if prev.IsSome then prev else asMap.TryFind keys.[idx] )
     
     
     member this.Remove (k:string) =
@@ -202,8 +208,8 @@ type Cache<'V when 'V :> ITypeSerialisable>( logger: ILogger, name:string, serde
             member this.Keys () =
                 this.Keys()
                 
-            member this.Set k v =
-                this.Set k v
+            member this.SetKeys kvs =
+                this.SetKeys kvs
                 
             member this.TryGetKeys keys =
                 this.TryGetKeys keys

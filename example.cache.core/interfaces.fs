@@ -25,7 +25,7 @@ type ICache<'V> =
     
     abstract TryGetKeys : keys:string[] -> ('V option)[]
     
-    abstract Set : key:string -> 'V -> unit
+    abstract SetKeys : (string*'V)[] -> unit
     
     abstract Remove : key:string -> bool
     

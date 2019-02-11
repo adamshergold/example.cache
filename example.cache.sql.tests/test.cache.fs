@@ -1,5 +1,7 @@
 namespace Example.Cache.Sql.Tests
 
+open Microsoft.Extensions.Logging
+
 open Xunit
 open Xunit.Abstractions
 
@@ -30,7 +32,7 @@ type CacheShould( oh: ITestOutputHelper ) =
             [|
                 [| box <| DbConnectionSpecification.Sqlite( SqliteSpecification.Default ) |]
                 //[| box <| DbConnectionSpecification.MySql( MySqlSpecification.Make( "localhost", "example", "example-pw", "example" ) ) |]
-                //[| box <| DbConnectionSpecification.SqlServer( SqlServerSpecification.Make( "Server=tcp:server-example-20192.database.windows.net,1433;Initial Catalog=example;Persist Security Info=False;User ID=example-admin;Password=<>;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;") ) |]
+                //[| box <| DbConnectionSpecification.SqlServer( SqlServerSpecification.Make( "Server=tcp:server-example-20192.database.windows.net,1433;Initial Catalog=example;Persist Security Info=False;User ID=example-admin;Password=;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;") ) |]
             |]
        
     interface System.IDisposable
@@ -38,6 +40,41 @@ type CacheShould( oh: ITestOutputHelper ) =
             member this.Dispose () =
                 factory.Dispose()
                 
+    [<Theory>]
+    [<MemberData("ConnectionSpecs")>]
+    member this.``VolumeTest`` (spec:DbConnectionSpecification) =
+        
+        use connection =
+            factory.Create "test" spec 
+       
+        let cacheName =
+            "VolumeTest"
+            
+        let sut =
+            let options = Sql.Specification.Default
+            Sql.Cache<TestType>.Make( logger, cacheName, serde, connection, options )
+
+        sut.Purge() |> ignore
+        
+        let nItems = 10000
+        
+        let batchSize =
+            if connection.ConnectorType.Equals("sqlite",System.StringComparison.OrdinalIgnoreCase) then 250 else 1000
+            
+        let items =
+            Seq.init nItems ( fun idx ->
+                let tt = TestType.RandomWithId generator idx
+                tt.Id, tt ) |> Array.ofSeq
+        
+        let batches =
+            Array.chunkBySize batchSize items
+            
+        batches |> Seq.iteri ( fun idx batch ->
+            logger.LogInformation( "Processing batch {BatchIndex} with {nItems} items", idx, batch.Length )
+            sut.SetKeys batch )
+        
+        Assert.True( true )
+        
     [<Theory>]
     [<MemberData("ConnectionSpecs")>]
     member this.``BeCreateableAndReportEmpty`` (spec:DbConnectionSpecification) =
@@ -80,7 +117,7 @@ type CacheShould( oh: ITestOutputHelper ) =
         let tt =
             TestType.Random generator
             
-        sut.Set tt.Id tt
+        sut.SetKeys <| Array.singleton (tt.Id,tt)
         
         Assert.True( sut.Exists tt.Id )
         
@@ -121,7 +158,7 @@ type CacheShould( oh: ITestOutputHelper ) =
         let tt =
             TestType.Random generator
             
-        sut.Set tt.Id tt
+        sut.SetKeys <| Array.singleton (tt.Id,tt)
 
         // sleep well over the expiry time
         System.Threading.Thread.Sleep( 2000 )
@@ -156,7 +193,7 @@ type CacheShould( oh: ITestOutputHelper ) =
 
         sut.Purge() |> ignore
         
-        testItems |> Array.iter ( fun tt -> sut.Set tt.Id tt )            
+        testItems |> Array.map ( fun tt -> (tt.Id,tt) ) |> sut.SetKeys
 
         let ids =
             Seq.initInfinite ( fun _ -> testItems.[ generator.NextInt(0,testItems.Length-1) ].Id ) |> Seq.truncate (testItems.Length/2) |> Array.ofSeq
