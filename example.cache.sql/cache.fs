@@ -114,7 +114,7 @@ type Cache<'V when 'V :> ITypeSerialisable>( logger: ILogger, name:string, metri
         Helpers.Keys logger cacheTable_Name connection
                    
                     
-    member this.SetKeys (kvs:(string*'V)[]) =
+    member this.Set (kvs:(string*'V)[]) =
         
         let tags = new MetricTags( "action", "set" )
         using( metrics.Measure.Timer.Time( timer, tags ) ) <| fun timerContext ->
@@ -148,12 +148,12 @@ type Cache<'V when 'V :> ITypeSerialisable>( logger: ILogger, name:string, metri
                 false
                 
                 
-    member this.TryGetKeys (keys:string[]) =
+    member this.TryGet (keys:string[]) =
         
         this.Check()
         
         let tryGetInline =
-            inlineCache.TryGetKeys keys
+            inlineCache.TryGet keys
             
         let missingKeys =
             tryGetInline
@@ -162,10 +162,10 @@ type Cache<'V when 'V :> ITypeSerialisable>( logger: ILogger, name:string, metri
             |> Seq.choose id
             
         let tryGetFromStore =
-            Helpers.TryGetKeys<'V> logger cacheTable_Name connection serde spec.ContentType missingKeys
+            Helpers.TryGet<'V> logger cacheTable_Name connection serde spec.ContentType missingKeys
 
         //tryGetFromStore |> Map.iter ( fun k v -> inlineCache.Set k v )
-        inlineCache.SetKeys tryGetFromStore
+        inlineCache.Set tryGetFromStore
         
         let asMap = tryGetFromStore |> Map.ofSeq
         
@@ -174,19 +174,19 @@ type Cache<'V when 'V :> ITypeSerialisable>( logger: ILogger, name:string, metri
             if prev.IsSome then prev else asMap.TryFind keys.[idx] )
     
     
-    member this.Remove (k:string) =
-        logger.LogTrace( "SqlCache::Remove - Called with key {Key}", k )
+    member this.Remove (ks:string[]) =
+        logger.LogTrace( "SqlCache::Remove - Called with {nKey} keys", ks.Length )
 
+        this.Check()
+        
         lock this <| fun _ ->
-            
-            inlineCache.Remove k |> ignore
-            
-            this.Check()
+
+            inlineCache.Remove ks |> ignore
             
             let recordsAffected =
-                Helpers.Remove logger cacheTable_Name connection k
+                Helpers.Remove logger cacheTable_Name connection ks
     
-            recordsAffected > 0
+            recordsAffected 
                  
                     
     interface System.IDisposable
@@ -218,14 +218,14 @@ type Cache<'V when 'V :> ITypeSerialisable>( logger: ILogger, name:string, metri
             member this.Keys () =
                 this.Keys()
                 
-            member this.SetKeys kvs =
-                this.SetKeys kvs
+            member this.Set kvs =
+                this.Set kvs
                 
-            member this.TryGetKeys keys =
-                this.TryGetKeys keys
+            member this.TryGet keys =
+                this.TryGet keys
                 
-            member this.Remove k =
-                this.Remove k
+            member this.Remove ks =
+                this.Remove ks
                 
             [<CLIEvent>]                    
             member this.OnSet =

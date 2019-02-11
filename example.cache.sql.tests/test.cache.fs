@@ -74,7 +74,7 @@ type CacheShould( oh: ITestOutputHelper ) =
             
         batches |> Seq.iteri ( fun idx batch ->
             logger.LogInformation( "Processing batch {BatchIndex} with {nItems} items", idx, batch.Length )
-            sut.SetKeys batch )
+            sut.Set batch )
         
         Metrics.DumpMetrics metrics logger
         
@@ -122,20 +122,20 @@ type CacheShould( oh: ITestOutputHelper ) =
         let tt =
             TestType.Random generator
             
-        sut.SetKeys <| Array.singleton (tt.Id,tt)
+        sut.Set <| Array.singleton (tt.Id,tt)
         
         Assert.True( sut.Exists tt.Id )
         
-        let vs = sut.TryGetKeys [| tt.Id |]
+        let vs = sut.TryGet [| tt.Id |]
         
         Assert.True( vs.Length = 1 )
         Assert.True( vs.[0].IsSome )
         
         Assert.Equal( tt, vs.[0].Value )
         
-        Assert.True( sut.Remove tt.Id )
+        Assert.Equal( 1, sut.Remove [| tt.Id |] )
         
-        let vs = sut.TryGetKeys [| tt.Id |]
+        let vs = sut.TryGet [| tt.Id |]
         
         Assert.True( vs.Length = 1 )
         Assert.True( vs.[0].IsNone )
@@ -150,7 +150,7 @@ type CacheShould( oh: ITestOutputHelper ) =
             factory.Create "test" spec
             
         let cacheName =
-            "AllowSimpleSetWIthExpiry"
+            "AllowSimpleSetWithExpiry"
             
         let sut =
             let options =
@@ -163,7 +163,7 @@ type CacheShould( oh: ITestOutputHelper ) =
         let tt =
             TestType.Random generator
             
-        sut.SetKeys <| Array.singleton (tt.Id,tt)
+        sut.Set <| Array.singleton (tt.Id,tt)
 
         // sleep well over the expiry time
         System.Threading.Thread.Sleep( 2000 )
@@ -171,7 +171,7 @@ type CacheShould( oh: ITestOutputHelper ) =
         sut.Clean() |> Async.RunSynchronously
         
         // should have been tidied-up!
-        let vs = sut.TryGetKeys [| tt.Id |]
+        let vs = sut.TryGet [| tt.Id |]
         
         Assert.True( vs.Length = 1 )
         Assert.True( vs.[0].IsNone )
@@ -188,7 +188,7 @@ type CacheShould( oh: ITestOutputHelper ) =
             "InsertManyAndGetAsync"
             
         let testItems =
-            Array.init (generator.NextInt(100,500)) ( fun idx -> TestType.RandomWithId generator idx )
+            Array.init (generator.NextInt(10,200)) ( fun idx -> TestType.RandomWithId generator idx )
             
         let sut =
             let options =
@@ -198,13 +198,13 @@ type CacheShould( oh: ITestOutputHelper ) =
 
         sut.Purge() |> ignore
         
-        testItems |> Array.map ( fun tt -> (tt.Id,tt) ) |> sut.SetKeys
+        testItems |> Array.map ( fun tt -> (tt.Id,tt) ) |> sut.Set
 
         let ids =
             Seq.initInfinite ( fun _ -> testItems.[ generator.NextInt(0,testItems.Length-1) ].Id ) |> Seq.truncate (testItems.Length/2) |> Array.ofSeq
             
         let results =
-            sut.TryGetKeys ids 
+            sut.TryGet ids 
             
         Assert.Equal( ids.Length, results.Length )
         

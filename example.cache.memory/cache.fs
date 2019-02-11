@@ -79,9 +79,9 @@ type Cache<'V> ( logger: ILogger, name:string, spec:Specification ) =
             lru.Remove(ci.LRUNode)
             let result = items.Remove(k)
             onRemove.Trigger( k )
-            result
+            1
         else 
-            false 
+            0 
     
     let tryGet (k:string) =
         
@@ -157,14 +157,14 @@ type Cache<'V> ( logger: ILogger, name:string, spec:Specification ) =
                 onEvicted.Trigger( keyToRemove )
                 result
             else    
-                false
+                0
 
         let oversizedRemoved = 
             if spec.MaxSize.IsSome then 
                 let n = ref 0
                 withWriteLock <| fun () ->
                     while items.Count > spec.MaxSize.Value do
-                        if removeLast() then System.Threading.Interlocked.Increment( n ) |> ignore else ()
+                        if removeLast().Equals(1) then System.Threading.Interlocked.Increment( n ) |> ignore else ()
                 !n     
             else 
                 0
@@ -181,7 +181,7 @@ type Cache<'V> ( logger: ILogger, name:string, spec:Specification ) =
                 let n = ref 0 
                 withWriteLock <| fun () ->
                     while lru.Count > 0 && lastExpired spec.TimeToLiveSeconds.Value do
-                        if removeLast() then System.Threading.Interlocked.Increment( n ) |> ignore else ()
+                        if removeLast().Equals(1) then System.Threading.Interlocked.Increment( n ) |> ignore else ()
                 !n     
             else 
                 0
@@ -190,7 +190,7 @@ type Cache<'V> ( logger: ILogger, name:string, spec:Specification ) =
         
         oversizedRemoved + expiredRemoved           
         
-    member this.SetKeys (kvs:seq<string*'V>) =
+    member this.Set (kvs:seq<string*'V>) =
         logger.LogTrace( "MemoryCache::SetKeys({CacheName}) - Called" )
         
         withWriteLock <| fun _ ->
@@ -221,16 +221,16 @@ type Cache<'V> ( logger: ILogger, name:string, spec:Specification ) =
                 
         this.Flush() |> ignore
             
-    member this.TryGetKeys (keys:string[]) =
+    member this.TryGet (keys:string[]) =
         logger.LogTrace( "MemoryCache::Get({CacheName}) - Called with {nKeys} keys", this.Name, keys.Length )
         withWriteLock <| fun _ ->
             keys |> Array.map tryGet 
         
-    member this.Remove (k:string) =
-        logger.LogTrace( "MemoryCache::Remove({CacheName}) - Called with key {Key}", this.Name, k )
+    member this.Remove (ks:string[]) =
+        logger.LogTrace( "MemoryCache::Remove({CacheName}) - Called with {nKeys} keys", this.Name, ks.Length )
         statistics.Remove()
         withWriteLock <| fun _ ->
-            remove k 
+            ks |> Seq.fold ( fun acc k -> acc + remove k ) 0 
                 
     interface System.IDisposable
         with
@@ -260,14 +260,14 @@ type Cache<'V> ( logger: ILogger, name:string, spec:Specification ) =
             member this.Keys () =
                 this.Keys()
                 
-            member this.SetKeys kvs =
-                this.SetKeys kvs
+            member this.Set kvs =
+                this.Set kvs
                 
-            member this.TryGetKeys keys =
-                this.TryGetKeys keys
+            member this.TryGet keys =
+                this.TryGet keys
                 
-            member this.Remove k =
-                this.Remove k
+            member this.Remove ks =
+                this.Remove ks
                 
             [<CLIEvent>]                    
             member this.OnSet =

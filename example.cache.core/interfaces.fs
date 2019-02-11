@@ -23,11 +23,11 @@ type ICache<'V> =
     
     abstract Exists : key:string -> bool
     
-    abstract TryGetKeys : keys:string[] -> ('V option)[]
+    abstract TryGet : keys:string[] -> ('V option)[]
     
-    abstract SetKeys : (string*'V)[] -> unit
+    abstract Set : (string*'V)[] -> unit
     
-    abstract Remove : key:string -> bool
+    abstract Remove : string[] -> int
     
     abstract Statistics : IStatistics with get
     

@@ -117,12 +117,19 @@ module Helpers =
     
         keys
         
-    let Remove (logger:ILogger) (cacheTable:string) (connection:IDbConnection) (k:string) =
+    let Remove (logger:ILogger) (cacheTable:string) (connection:IDbConnection) (ks:string[]) =
         
         let cmd =
+            
+            let inClause =
+                ks |> Seq.mapi ( fun idx _ -> sprintf "@p%d" idx ) |> String.concat ","
+            
+            let ps =
+                ks |> Seq.mapi ( fun idx k -> sprintf "@p%d" idx, box(k) ) 
+                
             connection.CreateCommand
-                (sprintf "DELETE FROM %s WHERE CKey = @CKey" cacheTable)
-                (Seq.singleton ("@CKey",box(k)))
+                (sprintf "DELETE FROM %s WHERE CKey IN ( %s )" cacheTable inClause)
+                ps
 
         using( cmd.ExecuteReader() ) <| fun reader ->
             reader.RecordsAffected        
@@ -181,7 +188,7 @@ module Helpers =
             
             nRecordsAffected
         
-    let TryGetKeys<'V> (logger:ILogger) (cacheTable:string) (connection:IDbConnection) (serde:ISerde) (contentType:string) (keys:seq<string>) : (string*'V)[] =
+    let TryGet<'V> (logger:ILogger) (cacheTable:string) (connection:IDbConnection) (serde:ISerde) (contentType:string) (keys:seq<string>) : (string*'V)[] =
         
         let inClause =
             keys |> Seq.mapi ( fun i k -> sprintf "@P%d" i ) |> String.concat ","
