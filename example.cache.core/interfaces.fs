@@ -1,5 +1,6 @@
 namespace Example.Cache
 
+open System.Collections.Generic
 open Microsoft.Extensions.Logging
 
 type IStatistics =
@@ -11,6 +12,9 @@ type IStatistics =
 
 type ICacheOptions =
     interface end
+
+// simple key/value tuple alias
+type CacheItem<'V> = string * 'V
     
 type ICache<'V> =
     inherit System.IDisposable
@@ -23,9 +27,11 @@ type ICache<'V> =
     
     abstract Exists : key:string -> bool
     
-    abstract TryGet : keys:string[] -> ('V option)[]
+    abstract TryGet : keys:string[] -> (CacheItem<'V> option)[]
     
-    abstract Set : (string*'V)[] -> unit
+    abstract TryGetAsync : keys:string[] -> Async< (CacheItem<'V> option)[] >
+    
+    abstract Set : seq< CacheItem<'V> > -> unit
     
     abstract Remove : string[] -> int
     

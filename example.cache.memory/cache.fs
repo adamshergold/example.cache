@@ -8,7 +8,7 @@ open Example.Cache.Core
 [<AutoOpen>]
 module private MemoryCacheImpl =
     
-    type LRUItem<'K> = {
+    type LRUEntry<'K> = {
         Key : 'K
         CreatedAt : System.DateTime 
     }
@@ -16,9 +16,9 @@ module private MemoryCacheImpl =
         static member Make( k, ca ) = 
             { Key = k; CreatedAt = ca } 
                
-    type CacheItem<'K,'V> = {
+    type CacheEntry<'K,'V> = {
         Item : RV<'V>
-        LRUNode : System.Collections.Generic.LinkedListNode<LRUItem<'K>>
+        LRUNode : System.Collections.Generic.LinkedListNode<LRUEntry<'K>>
     }
     with 
         static member Make( item, n ) = 
@@ -27,7 +27,7 @@ module private MemoryCacheImpl =
 type Cache<'V> ( logger: ILogger, name:string, spec:Specification ) =
     
     let makeLRUNode (k:string) = 
-        System.Collections.Generic.LinkedListNode( LRUItem<'V>.Make(k,System.DateTime.UtcNow) )
+        System.Collections.Generic.LinkedListNode( LRUEntry<'V>.Make(k,System.DateTime.UtcNow) )
     
     let slimLock = 
         new System.Threading.ReaderWriterLockSlim() 
@@ -49,17 +49,17 @@ type Cache<'V> ( logger: ILogger, name:string, spec:Specification ) =
     let statistics =
         Statistics.Make()
     
-    let items =
+    let entries =
         if spec.InitialCapacity.IsSome then 
-            new System.Collections.Generic.Dictionary<string,CacheItem<string,'V>>( spec.InitialCapacity.Value )
+            new System.Collections.Generic.Dictionary<string,CacheEntry<string,'V>>( spec.InitialCapacity.Value )
         else
             if spec.MaxSize.IsSome then 
-                new System.Collections.Generic.Dictionary<string,CacheItem<string,'V>>( spec.MaxSize.Value )
+                new System.Collections.Generic.Dictionary<string,CacheEntry<string,'V>>( spec.MaxSize.Value )
             else
-                new System.Collections.Generic.Dictionary<string,CacheItem<string,'V>>()
+                new System.Collections.Generic.Dictionary<string,CacheEntry<string,'V>>()
                 
     let lru = 
-        new System.Collections.Generic.LinkedList<LRUItem<string>>() 
+        new System.Collections.Generic.LinkedList<LRUEntry<string>>() 
         
     let onSet =
         new Event<string>()
@@ -74,10 +74,10 @@ type Cache<'V> ( logger: ILogger, name:string, spec:Specification ) =
         new Event<string>()
         
     let remove (k:string) = 
-        if items.ContainsKey k then
-            let ci = items.Item(k)
+        if entries.ContainsKey k then
+            let ci = entries.Item(k)
             lru.Remove(ci.LRUNode)
-            let result = items.Remove(k)
+            let result = entries.Remove(k)
             onRemove.Trigger( k )
             1
         else 
@@ -88,7 +88,7 @@ type Cache<'V> ( logger: ILogger, name:string, spec:Specification ) =
         statistics.Get()
         
         let exists, item =
-            items.TryGetValue k
+            entries.TryGetValue k
 
         if not exists then
             None
@@ -97,12 +97,12 @@ type Cache<'V> ( logger: ILogger, name:string, spec:Specification ) =
             
             lru.Remove( item.LRUNode )
             
-            items.Remove( k ) |> ignore
+            entries.Remove( k ) |> ignore
             
             let newItem =                        
-                CacheItem<_,_>.Make( item.Item, makeLRUNode k ) 
+                CacheEntry<_,_>.Make( item.Item, makeLRUNode k ) 
     
-            items.Add( k, newItem )
+            entries.Add( k, newItem )
             lru.AddFirst( newItem.LRUNode )
                     
             onGet.Trigger(k)
@@ -122,12 +122,12 @@ type Cache<'V> ( logger: ILogger, name:string, spec:Specification ) =
         
     member this.Dispose () =
         lock this <| fun _ ->
-            items.Clear()
+            entries.Clear()
             
     member this.Purge () =
         withWriteLock <| fun _ ->
-            let count = items.Count
-            items.Clear()
+            let count = entries.Count
+            entries.Clear()
             lru.Clear()
             count
             
@@ -139,12 +139,12 @@ type Cache<'V> ( logger: ILogger, name:string, spec:Specification ) =
     member this.Exists (k:string) =
         logger.LogTrace( "MemoryCache::Exists({CacheName}) - Called for {Key}", this.Name, k )
         withReadLock <| fun _ ->
-            items.ContainsKey( k )
+            entries.ContainsKey( k )
             
     member this.Keys () =
         logger.LogTrace( "MemoryCache::Keys({CacheName}) - Called", this.Name )
         withReadLock <| fun _ ->
-            items.Keys |> Array.ofSeq
+            entries.Keys |> Array.ofSeq
             
     member this.Flush () =
 
@@ -163,7 +163,7 @@ type Cache<'V> ( logger: ILogger, name:string, spec:Specification ) =
             if spec.MaxSize.IsSome then 
                 let n = ref 0
                 withWriteLock <| fun () ->
-                    while items.Count > spec.MaxSize.Value do
+                    while entries.Count > spec.MaxSize.Value do
                         if removeLast().Equals(1) then System.Threading.Interlocked.Increment( n ) |> ignore else ()
                 !n     
             else 
@@ -190,42 +190,54 @@ type Cache<'V> ( logger: ILogger, name:string, spec:Specification ) =
         
         oversizedRemoved + expiredRemoved           
         
-    member this.Set (kvs:seq<string*'V>) =
-        logger.LogTrace( "MemoryCache::SetKeys({CacheName}) - Called" )
+    member this.Set (items:seq<CacheItem<'V>>) =
+        logger.LogTrace( "MemoryCache::Set({CacheName}) - Called" )
         
         withWriteLock <| fun _ ->
             
-            kvs |> Seq.iter ( fun (k,v) ->
+            items |> Seq.iter ( fun item ->
                 
                 statistics.Set()
                 
-                let exists, item = 
-                    items.TryGetValue k                                    
+                let itemKey, itemValue = item
+                
+                let exists, entry = 
+                    entries.TryGetValue itemKey                                    
     
                 let newItem =                        
                     if exists then
                         // if exists, remove from the node from LRU list - O(1)
-                        lru.Remove( item.LRUNode )
+                        lru.Remove( entry.LRUNode )
                         // remove key from cache - O(1)
-                        items.Remove( k ) |> ignore
-                        CacheItem<_,_>.Make( item.Item, makeLRUNode k ) 
+                        entries.Remove( itemKey) |> ignore
+                        CacheEntry<_,_>.Make( entry.Item, makeLRUNode itemKey ) 
                     else 
-                        CacheItem<_,_>.Make( RV<_>.Constant( v ), makeLRUNode k )                     
+                        CacheEntry<_,_>.Make( RV<_>.Constant( itemValue ), makeLRUNode itemKey )                     
                             
                 // put the item into the cache                        
-                items.Add( k, newItem )
+                entries.Add( itemKey, newItem )
                 // add the node to front of LRU list
                 lru.AddFirst( newItem.LRUNode )
                 
-                onSet.Trigger( k ) )
+                onSet.Trigger( itemKey ) )
                 
         this.Flush() |> ignore
             
     member this.TryGet (keys:string[]) =
-        logger.LogTrace( "MemoryCache::Get({CacheName}) - Called with {nKeys} keys", this.Name, keys.Length )
+        logger.LogTrace( "MemoryCache::TryGet({CacheName}) - Called with {nKeys} keys", this.Name, keys.Length )
         withWriteLock <| fun _ ->
-            keys |> Array.map tryGet 
-        
+            keys |> Array.map ( fun k -> tryGet k |> Option.bind ( fun v -> Some (k,v) ) ) 
+                 
+
+    member this.TryGetAsync (keys:string[]) =
+        async {
+            logger.LogTrace( "MemoryCache::TryGetAsync({CacheName}) - Called with {nKeys} keys", this.Name, keys.Length )
+            let result =
+                withWriteLock <| fun _ ->
+                    keys |> Array.map ( fun k -> tryGet k |> Option.bind ( fun v -> Some (k,v) ) )
+            return result
+            }
+            
     member this.Remove (ks:string[]) =
         logger.LogTrace( "MemoryCache::Remove({CacheName}) - Called with {nKeys} keys", this.Name, ks.Length )
         statistics.Remove()
@@ -240,7 +252,7 @@ type Cache<'V> ( logger: ILogger, name:string, spec:Specification ) =
     interface IEnumerableCache<'V>
         with
             member this.Count
-                with get () = items.Count 
+                with get () = entries.Count 
                 
             member this.Statistics =
                 this.Statistics :> IStatistics
@@ -265,7 +277,10 @@ type Cache<'V> ( logger: ILogger, name:string, spec:Specification ) =
                 
             member this.TryGet keys =
                 this.TryGet keys
-                
+
+            member this.TryGetAsync keys =
+                this.TryGetAsync keys
+                            
             member this.Remove ks =
                 this.Remove ks
                 
@@ -285,16 +300,3 @@ type Cache<'V> ( logger: ILogger, name:string, spec:Specification ) =
             member this.OnEvicted =
                 onEvicted.Publish
 
-//type Creator () =
-//    static member Value
-//        with get () =
-//            { new ICacheCreator
-//                with
-//                    member this.TryCreate<'V> logger name spec =
-//                        match spec with
-//                        | :? Specification as spec ->
-//                            Some( new Cache<'V>( logger, name, spec ) :> ICache<'V> )
-//                        | _ ->
-//                            None }
-
-    

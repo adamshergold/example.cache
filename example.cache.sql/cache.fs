@@ -114,7 +114,9 @@ type Cache<'V when 'V :> ITypeSerialisable>( logger: ILogger, name:string, metri
         Helpers.Keys logger cacheTable_Name connection
                    
                     
-    member this.Set (kvs:(string*'V)[]) =
+    member this.Set (kvs:seq<CacheItem<'V>>) =
+        
+        let nItems = kvs |> Seq.length
         
         let tags = new MetricTags( "action", "set" )
         using( metrics.Measure.Timer.Time( timer, tags ) ) <| fun timerContext ->
@@ -124,10 +126,10 @@ type Cache<'V when 'V :> ITypeSerialisable>( logger: ILogger, name:string, metri
             let nRecordsAffected =
                 Helpers.Insert logger cacheTable_Name connection serde spec.ContentType spec.TimeToLiveSeconds kvs 
     
-            if nRecordsAffected <> kvs.Length then
-                failwithf "Mismatch between number of items provided ('%d') and number written ('%d')" kvs.Length nRecordsAffected
+            if nRecordsAffected <> nItems then
+                failwithf "Mismatch between number of items provided ('%d') and number written ('%d')" nItems nRecordsAffected
                 
-            logger.LogTrace( "SqlCache::Set - {nRecordsAffected} {nKeys}", nRecordsAffected, kvs.Length)
+            logger.LogTrace( "SqlCache::Set - {nRecordsAffected} {nKeys}", nRecordsAffected, nItems)
                 
             
     member this.Exists (k:string) =
@@ -147,7 +149,35 @@ type Cache<'V when 'V :> ITypeSerialisable>( logger: ILogger, name:string, metri
             else
                 false
                 
+    member this.TryGetAsync (keys:string[]) =
+        async {
+            
+            this.Check()
+            
+            let! tryGetInline =
+                inlineCache.TryGetAsync keys
                 
+            let missingKeys =
+                tryGetInline
+                |> Seq.mapi ( fun idx item ->
+                    if item.IsSome then None else Some keys.[idx] )
+                |> Seq.choose id
+                
+            let! tryGetFromStore =
+                Helpers.TryGetAsync<'V> logger cacheTable_Name connection serde spec.ContentType missingKeys
+    
+            inlineCache.Set tryGetFromStore
+            
+            let asMap = tryGetFromStore |> Seq.map ( fun ci -> fst ci, ci) |> Map.ofSeq
+            
+            let result =
+                Array.init keys.Length (fun idx ->
+                    let prev = tryGetInline.[idx]
+                    if prev.IsSome then prev else asMap.TryFind keys.[idx] )
+                
+            return result                
+        } 
+        
     member this.TryGet (keys:string[]) =
         
         this.Check()
@@ -157,22 +187,23 @@ type Cache<'V when 'V :> ITypeSerialisable>( logger: ILogger, name:string, metri
             
         let missingKeys =
             tryGetInline
-            |> Seq.mapi ( fun idx v ->
-                if v.IsSome then None else Some keys.[idx] )
+            |> Seq.mapi ( fun idx item ->
+                if item.IsSome then None else Some keys.[idx] )
             |> Seq.choose id
             
         let tryGetFromStore =
             Helpers.TryGet<'V> logger cacheTable_Name connection serde spec.ContentType missingKeys
 
-        //tryGetFromStore |> Map.iter ( fun k v -> inlineCache.Set k v )
         inlineCache.Set tryGetFromStore
         
-        let asMap = tryGetFromStore |> Map.ofSeq
+        let asMap = tryGetFromStore |> Seq.map ( fun ci -> fst ci, ci) |> Map.ofSeq
         
-        Array.init keys.Length (fun idx ->
-            let prev = tryGetInline.[idx]
-            if prev.IsSome then prev else asMap.TryFind keys.[idx] )
+        let result =
+            Array.init keys.Length (fun idx ->
+                let prev = tryGetInline.[idx]
+                if prev.IsSome then prev else asMap.TryFind keys.[idx] )
     
+        result
     
     member this.Remove (ks:string[]) =
         logger.LogTrace( "SqlCache::Remove - Called with {nKey} keys", ks.Length )
@@ -223,7 +254,10 @@ type Cache<'V when 'V :> ITypeSerialisable>( logger: ILogger, name:string, metri
                 
             member this.TryGet keys =
                 this.TryGet keys
-                
+
+            member this.TryGetAsync keys =
+                this.TryGetAsync keys
+                            
             member this.Remove ks =
                 this.Remove ks
                 

@@ -15,7 +15,7 @@ module Logging =
     }
     with 
         static member Default = {
-            Level = LogLevel.Trace
+            Level = LogLevel.Debug
             OutputHelper = None
             Template = "{Timestamp:yyyy-MM-dd HH:mm:ss} [{Level}] {Message} {Properties}{NewLine}{Exception}"
         }
