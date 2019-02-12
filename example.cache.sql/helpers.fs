@@ -199,6 +199,8 @@ module Helpers =
                     (sb.ToString())
                     ps
                     
+            cmd.Transaction <- transaction
+            
             let nRecordsAffected =
                 cmd.ExecuteNonQuery() 
     
