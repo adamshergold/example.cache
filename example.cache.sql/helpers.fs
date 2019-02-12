@@ -273,47 +273,39 @@ module Helpers =
         results 
         
     let TryGetAsync<'V> (logger:ILogger) (cacheTable:string) (connection:IDbConnection) (serde:ISerde) (contentType:string) (keys:seq<string>) : Async<System.Collections.Generic.List<CacheItem<'V>>> =
-
-        let inClause =
-            keys |> Seq.mapi ( fun i k -> sprintf "@P%d" i ) |> String.concat ","
-            
-        let ps =
-            keys |> Seq.mapi ( fun i k -> (sprintf "@P%d" i),box(k)) 
-            
-        let cmd =
-            connection.CreateCommand
-                (sprintf "SELECT CKey, Body FROM %s AS t WHERE CKey IN ( %s ) AND Revision = ( SELECT MAX(Revision) FROM %s WHERE CKey = t.CKey )" cacheTable inClause cacheTable)
-                ps
-                
         async {
             
+            let inClause =
+                keys |> Seq.mapi ( fun i k -> sprintf "@P%d" i ) |> String.concat ","
+                
+            let ps =
+                keys |> Seq.mapi ( fun i k -> (sprintf "@P%d" i),box(k)) 
+
+            let cmd =
+                connection.CreateCommand
+                    (sprintf "SELECT CKey, Body FROM %s AS t WHERE CKey IN ( %s ) AND Revision = ( SELECT MAX(Revision) FROM %s WHERE CKey = t.CKey )" cacheTable inClause cacheTable)
+                    ps
+                        
             let! reader =
                 Async.AwaitTask <| cmd.ExecuteReaderAsync() 
 
-            let readRows (reader:System.Data.Common.DbDataReader) =
-
-                let results =
-                    new System.Collections.Generic.List<CacheItem<'V>>()
-
-                async {
-                    let mutable finished = false
-                    
-                    while not finished do
-                        
-                        let! readAsyncResult =
-                            Async.AwaitTask <| reader.ReadAsync()
-                            
-                        if readAsyncResult then
-                            let row = TryGetExtractRow serde contentType reader
-                            if row.IsSome then results.Add( row.Value )
-                        else
-                            finished <- true
-                            
-                    return results        
-                }
-                
             let results =
-                using( reader ) <| fun reader -> readRows reader
+                new System.Collections.Generic.List<CacheItem<'V>>()
+            
+            let mutable finished = false
+                    
+            while not finished do
                 
-            return! results }
+                let! readAsyncResult =
+                    Async.AwaitTask <| reader.ReadAsync()
+                    
+                if readAsyncResult then
+                    let row = TryGetExtractRow serde contentType reader
+                    if row.IsSome then results.Add( row.Value )
+                else
+                    finished <- true
+                    
+            reader.Close()
+            
+            return results }
                 
