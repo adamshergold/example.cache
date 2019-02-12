@@ -119,7 +119,7 @@ module Helpers =
                 System.DateTime.UtcNow
                 
             connection.CreateCommand
-                (sprintf "SELECT CKey FROM %s AS t WHERE Expiry > @Expiry AND Revision = ( SELECT MAX(Revision) FROM %s WHERE Id = t.Id )" cacheTable cacheTable)
+                (sprintf "SELECT CKey FROM %s AS t WHERE Expiry > @Expiry AND Revision = ( SELECT MAX(Revision) FROM %s WHERE CKey = t.CKey )" cacheTable cacheTable)
                 (Seq.singleton ("@Expiry",box(expiry)))
                         
         let keys =
