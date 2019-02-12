@@ -19,7 +19,7 @@ module Helpers =
                 elif connection.ConnectorType.Equals("mysql",System.StringComparison.OrdinalIgnoreCase) then
                     sprintf "SELECT 1 FROM INFORMATION_SCHEMA.TABLES where TABLE_NAME = '%s'" cacheTable
                 elif connection.ConnectorType.Equals("sqlserver",System.StringComparison.OrdinalIgnoreCase) then                    
-                    sprintf "SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = '%s' AND TABLE_SCHEMA = 'dbo')" cacheTable 
+                    sprintf "SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = '%s' AND TABLE_SCHEMA = 'dbo'" cacheTable 
                 else
                     failwithf "Do not know how to initialise table for connector-type '%s'" connection.ConnectorType
                     
