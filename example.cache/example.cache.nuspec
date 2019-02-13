@@ -9,6 +9,7 @@
       <dependency id="Newtonsoft.Json" version="12.0.1"/>
       <dependency id="Microsoft.Extensions.Logging" version="2.2.0"/>
       <dependency id="example.serialisation" version="$serialisation$"/>
+      <dependency id="example.sql" version="$sql$"/>
       <dependency id="Microsoft.Extensions.Logging" version="2.2.0"/>
       <dependency id="System.Data.SqlClient" version="4.6.0"/>
       <dependency id="Microsoft.Data.Sqlite" version="2.2.0"/>

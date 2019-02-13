@@ -26,6 +26,7 @@
     <PropertyGroup>
       <NuspecProperties>version=$(GitVersion_FullSemVer)</NuspecProperties>
       <NuspecProperties>$(NuspecProperties);serialisation=$(Example-Serialisation-Version.Replace('*','WILDCARD'))</NuspecProperties>
+      <NuspecProperties>$(NuspecProperties);sql=$(Example-Sql-Version.Replace('*','WILDCARD'))</NuspecProperties>
     </PropertyGroup>
   </Target>
 
